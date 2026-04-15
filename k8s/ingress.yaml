@@ -9,8 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: finops.local   # поменять на реальный домен
-      http:
+    -  http:
         paths:
           - path: /api
             pathType: Prefix
