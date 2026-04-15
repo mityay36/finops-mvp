@@ -44,6 +44,7 @@ grafana:
   persistence:
     enabled: true
     size: 2Gi
+    storageClassName: "yc-network-hdd"
     accessModes:
       - ReadWriteOnce
 
