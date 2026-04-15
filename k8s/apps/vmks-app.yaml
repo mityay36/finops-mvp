@@ -49,3 +49,9 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/template/metadata/annotations/checksum~1secret
+    - group: ""
+      kind: PersistentVolumeClaim
+      jsonPointers:
+        - /spec/storageClassName
+        - /spec/volumeName
+        - /spec/volumeMode
