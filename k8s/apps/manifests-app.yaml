@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_USERNAME/finops-mvp
+    repoURL: https://github.com/mityay36/finops-mvp
     targetRevision: main
-    path: manifests
+    path: k8s/manifests
 
   destination:
     server: https://kubernetes.default.svc

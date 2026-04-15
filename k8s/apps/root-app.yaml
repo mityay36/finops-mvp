@@ -8,12 +8,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_USERNAME/finops-mvp
+    repoURL: https://github.com/mityay36/finops-mvp
     targetRevision: main
-    path: apps
+    path: k8s/apps
     directory:
       recurse: false
-      exclude: root-app.yaml   # не применять себя рекурсивно
+      exclude: root-app.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

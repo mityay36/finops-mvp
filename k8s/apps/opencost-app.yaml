@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/YOUR_USERNAME/finops-mvp
+    - repoURL: https://github.com/mityay36/finops-mvp
       targetRevision: main
       ref: gitrepo
 
@@ -16,7 +16,7 @@ spec:
       helm:
         releaseName: opencost
         valueFiles:
-          - $gitrepo/opencost/values.yaml
+          - $gitrepo/k8s/opencost/values.yaml
 
   destination:
     server: https://kubernetes.default.svc
