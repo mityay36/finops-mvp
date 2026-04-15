@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencost-custom-pricing
+  namespace: opencost
+data:
+  default.json: |
+    {
+      "provider": "custom",
+      "description": "Yandex Cloud pricing RUB - Intel Ice Lake ru-central1-a",
+      "CPU": "841.617",
+      "spotCPU": "252.485",
+      "RAM": "224.402",
+      "spotRAM": "67.321",
+      "storage": "3.251",
+      "zoneNetworkEgress": "0",
+      "internetNetworkEgress": "1.5",
+      "currency": "RUB"
+    }
