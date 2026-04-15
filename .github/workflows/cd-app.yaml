@@ -69,7 +69,7 @@ jobs:
       # ── Обновляем image tags в манифестах (GitOps trigger) ─────────────────
       - name: Update image tags in manifests
         run: |
-          SHA=${{ needs.build-push.outputs.sha }}
+          SHA=${{ steps.tag.outputs.sha }}
           REGISTRY_ID=${{ secrets.YCR_REGISTRY_ID }}
 
           sed -i "s|finops-api:.*|finops-api:${SHA}|g" k8s/api/deployment.yaml
@@ -116,8 +116,10 @@ jobs:
           argocd login localhost:8080 --insecure \
             --username admin --password "${{ secrets.ARGOCD_PASSWORD }}"
 
-      - name: Sync & wait finops-app
+      - name: Sync & wait Finops app
         run: |
-          argocd app sync finops-app --timeout 60 || true
-          argocd app wait finops-app --health --timeout 300
-          echo "✅ finops-app deployed"
+          argocd app sync finops-api --timeout 60 || true
+          argocd app wait finops-api --health --timeout 300
+          argocd app sync finops-frontend --timeout 60 || true
+          argocd app wait finops-frontend --health --timeout 300
+          echo "✅ Finops app deployed"
