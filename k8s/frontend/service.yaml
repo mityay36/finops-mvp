@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: finops-frontend
+  namespace: finops
+spec:
+  selector:
+    app: finops-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: LoadBalancer

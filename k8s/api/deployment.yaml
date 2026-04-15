@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finops-api
+  namespace: finops
+  labels:
+    app: finops-api
+    team: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: finops-api
+  template:
+    metadata:
+      labels:
+        app: finops-api
+        team: platform
+    spec:
+      containers:
+        - name: finops-api
+          # Тег обновляется автоматически через CD pipeline (cd-app.yaml)
+          image: cr.yandex/YOUR_REGISTRY_ID/finops-api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: finops-api-secrets
+            - configMapRef:
+                name: finops-api-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
