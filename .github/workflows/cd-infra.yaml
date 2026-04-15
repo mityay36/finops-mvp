@@ -1,0 +1,130 @@
+name: CD — Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "k8s/**"
+
+jobs:
+  deploy:
+    name: Sync ArgoCD & Verify Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Настраиваем kubectl
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_YC }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+          kubectl cluster-info --request-timeout=10s
+
+      # 2. Устанавливаем ArgoCD CLI
+      - name: Install ArgoCD CLI
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/argoproj/argo-cd/releases/latest | jq -r .tag_name)
+          curl -sSL -o /usr/local/bin/argocd \
+            "https://github.com/argoproj/argo-cd/releases/download/${VERSION}/argocd-linux-amd64"
+          chmod +x /usr/local/bin/argocd
+
+      # 3. Port-forward ArgoCD server
+      - name: Port-forward ArgoCD
+        run: |
+          kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          echo "ARGOCD_PF_PID=$!" >> $GITHUB_ENV
+          sleep 5  # ждём пока прокси поднимется
+
+      # 4. Логинимся в ArgoCD
+      - name: ArgoCD login
+        run: |
+          argocd login localhost:8080 \
+            --insecure \
+            --username admin \
+            --password "${{ secrets.ARGOCD_PASSWORD }}"
+
+      # 5. Определяем какие приложения затронуты изменениями
+      - name: Detect changed apps
+        id: changed
+        run: |
+          # Смотрим какие пути изменились в этом коммите
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git show --name-only HEAD --format="" | tail -n +1)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          APPS=""
+          echo "$CHANGED" | grep -q "^k8s/vmks/"       && APPS="$APPS vmks"
+          echo "$CHANGED" | grep -q "^k8s/opencost/"    && APPS="$APPS opencost"
+          echo "$CHANGED" | grep -q "^k8s/dashboards/"  && APPS="$APPS grafana-dashboards"
+          echo "$CHANGED" | grep -q "^k8s/manifests/"   && APPS="$APPS finops-manifests"
+          echo "$CHANGED" | grep -q "^k8s/apps/"        && APPS="vmks opencost grafana-dashboards finops-manifests"
+
+          # Если ничего конкретного — синкаем всё
+          [ -z "$APPS" ] && APPS="vmks opencost grafana-dashboards finops-manifests"
+
+          echo "apps=$APPS" >> $GITHUB_OUTPUT
+          echo "Syncing apps: $APPS"
+
+      # 6. Trigger sync для затронутых приложений
+      - name: Sync ArgoCD applications
+        run: |
+          for APP in ${{ steps.changed.outputs.apps }}; do
+            echo "▶️  Syncing $APP..."
+            argocd app sync "$APP" \
+              --force \
+              --timeout 60 \
+              --retry-limit 2 || echo "⚠️ Sync trigger failed for $APP, ArgoCD will auto-sync"
+          done
+
+      # 7. Ждём Healthy для всех приложений
+      - name: Wait for Healthy state
+        run: |
+          ALL_APPS="vmks opencost grafana-dashboards finops-manifests"
+          FAILED=""
+
+          for APP in $ALL_APPS; do
+            echo "⏳ Waiting for $APP to be Healthy..."
+            if argocd app wait "$APP" \
+              --health \
+              --sync \
+              --timeout 300; then
+              echo "$APP — Healthy"
+            else
+              echo "$APP — Failed"
+              FAILED="$FAILED $APP"
+            fi
+          done
+
+          if [ -n "$FAILED" ]; then
+            echo "❌ Failed apps:$FAILED"
+            exit 1
+          fi
+
+      # 8. Summary
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "## 🚀 Infrastructure Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Application | Health | Sync | Images |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          for APP in vmks opencost grafana-dashboards finops-manifests; do
+            HEALTH=$(argocd app get "$APP" -o json 2>/dev/null | jq -r '.status.health.status' || echo "Unknown")
+            SYNC=$(argocd app get "$APP" -o json 2>/dev/null | jq -r '.status.sync.status' || echo "Unknown")
+            REVISION=$(argocd app get "$APP" -o json 2>/dev/null | jq -r '.status.sync.revision' | cut -c1-7 || echo "—")
+
+            [ "$HEALTH" = "Healthy" ] && ICON="✅" || ICON="❌"
+            echo "| $ICON $APP | $HEALTH | $SYNC | \`$REVISION\` |" >> $GITHUB_STEP_SUMMARY
+          done
+
+      # Cleanup
+      - name: Cleanup port-forward
+        if: always()
+        run: kill $ARGOCD_PF_PID 2>/dev/null || true
