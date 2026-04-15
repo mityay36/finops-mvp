@@ -1,0 +1,47 @@
+# opencost/values.yaml — OpenCost с Yandex Cloud pricing
+opencost:
+  exporter:
+    defaultClusterId: "finops-mvp-yc"
+    cloudProviderApiKey: "AIzaSyDz9EPmCT6yYS4QSWpzrKmToXoYkuZAGlw"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 55Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
+
+  customPricing:
+    enabled: true
+    costModel:
+      description: "Yandex Cloud pricing RUB - Intel Ice Lake ru-central1-a"
+      CPU: 841.617
+      spotCPU: 252.485
+      RAM: 224.402
+      spotRAM: 67.321
+      storage: 3.251
+      zoneNetworkEgress: 0
+      regionNetworkEgress: 0
+      internetNetworkEgress: 1.5
+
+  prometheus:
+    internal:
+      enabled: false
+    external:
+      enabled: true
+      url: "http://vmsingle-vmks-victoria-metrics-k8s-stack.vmks.svc:8428"
+
+  ui:
+    enabled: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 55Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+serviceMonitor:
+  enabled: true
+  additionalLabels:
+    release: vmks

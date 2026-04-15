@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-dashboards
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_USERNAME/finops-mvp
+    targetRevision: main
+    path: dashboards
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vmks
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

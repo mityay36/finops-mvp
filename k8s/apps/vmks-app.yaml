@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vmks
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Источник 1: values.yaml из Git-репозитория
+    - repoURL: https://github.com/YOUR_USERNAME/finops-mvp
+      targetRevision: main
+      ref: gitrepo
+
+    # Источник 2: Helm-чарт из OCI (значения берём из Git через ref выше)
+    - repoURL: ghcr.io/victoriametrics/helm-charts
+      chart: victoria-metrics-k8s-stack
+      targetRevision: 0.72.6
+      helm:
+        releaseName: vmks
+        valueFiles:
+          - $gitrepo/vmks/values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vmks
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

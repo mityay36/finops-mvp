@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opencost
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/YOUR_USERNAME/finops-mvp
+      targetRevision: main
+      ref: gitrepo
+
+    - repoURL: ghcr.io/opencost/charts
+      chart: opencost
+      targetRevision: 2.5.10
+      helm:
+        releaseName: opencost
+        valueFiles:
+          - $gitrepo/opencost/values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opencost
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

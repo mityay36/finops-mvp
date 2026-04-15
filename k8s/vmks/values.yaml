@@ -1,0 +1,81 @@
+# vmks/values.yaml — VictoriaMetrics K8s Stack
+victoria-metrics-operator:
+  admissionWebhooks:
+    enabled: false
+
+vmsingle:
+  enabled: true
+  spec:
+    retentionPeriod: "90d"
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+    storage:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+
+vmagent:
+  enabled: true
+  spec:
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 50m
+      limits:
+        memory: 128Mi
+        cpu: 200m
+
+alertmanager:
+  enabled: true
+
+grafana:
+  enabled: true
+  adminPassword: "finops-admin-2026"
+
+  persistence:
+    enabled: true
+    size: 2Gi
+    accessModes:
+      - ReadWriteOnce
+
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      provider:
+        allowUiUpdates: true
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+      searchNamespace: ALL
+
+  additionalDataSources:
+    - name: VictoriaMetrics
+      uid: VictoriaMetrics
+      type: prometheus
+      url: http://vmsingle-vmks-victoria-metrics-k8s-stack.vmks.svc.cluster.local.:8428
+      access: proxy
+      isDefault: true
+      jsonData:
+        timeInterval: "60s"
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+vmalert:
+  enabled: false
+vmauth:
+  enabled: false
