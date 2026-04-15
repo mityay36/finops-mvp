@@ -3,10 +3,12 @@ kind: Service
 metadata:
   name: finops-frontend
   namespace: finops
+  labels:
+    app: finops-frontend
 spec:
   selector:
     app: finops-frontend
   ports:
-    - port: 80
+    - name: http
+      port: 80
       targetPort: 80
-  type: LoadBalancer

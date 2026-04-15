@@ -6,6 +6,7 @@ metadata:
   labels:
     app: finops-api
     team: platform
+    env: production
 spec:
   replicas: 1
   selector:
@@ -16,25 +17,25 @@ spec:
       labels:
         app: finops-api
         team: platform
+        env: production
     spec:
       containers:
-        - name: finops-api
-          # Тег обновляется автоматически через CD pipeline (cd-app.yaml)
-          image: cr.yandex/YOUR_REGISTRY_ID/finops-api:latest
+        - name: api
+          image: cr.yandex/crppm2p2j5q3tmf17su4/finops-api:latest
           ports:
             - containerPort: 8000
           envFrom:
-            - secretRef:
-                name: finops-api-secrets
             - configMapRef:
                 name: finops-api-config
+            - secretRef:
+                name: finops-api-secret
           resources:
             requests:
-              cpu: 50m
+              cpu: 100m
               memory: 128Mi
             limits:
-              cpu: 200m
-              memory: 256Mi
+              cpu: 500m
+              memory: 512Mi
           livenessProbe:
             httpGet:
               path: /health

@@ -2,30 +2,45 @@ import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { TrendingDown, Server, AlertTriangle, DollarSign } from 'lucide-react'
 import { api, Summary, AllocationItem, RecommendationsResponse, BillingResponse } from './api/client'
+import type { CSSProperties } from 'react'
 
 const COLORS = ['#00d4b1', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
-const RISK_COLOR = { low: '#00d4b1', medium: '#f59e0b', high: '#ef4444' }
+const RISK_COLOR: Record<string, string> = {
+  low: '#00d4b1',
+  medium: '#f59e0b',
+  high: '#ef4444',
+}
 
-const s: Record<string, React.CSSProperties> = {
-  app: { minHeight: '100vh', padding: '24px', maxWidth: '1400px', margin: '0 auto' },
-  header: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' },
-  title: { fontSize: '24px', fontWeight: 700, color: '#f1f5f9' },
-  subtitle: { fontSize: '14px', color: '#64748b' },
-  grid4: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' },
-  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' },
-  card: { background: '#1e2433', borderRadius: '12px', padding: '20px', border: '1px solid #2d3748' },
+// Функция отдельно от объекта стилей — чтобы TypeScript не путал с CSSProperties
+function badgeStyle(risk: string): CSSProperties {
+  const color = RISK_COLOR[risk] ?? '#94a3b8'
+  return {
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: '999px',
+    fontSize: '11px',
+    background: color + '22',
+    color,
+    fontWeight: 600,
+  }
+}
+
+const s: Record<string, CSSProperties> = {
+  app:       { minHeight: '100vh', padding: '24px', maxWidth: '1400px', margin: '0 auto' },
+  header:    { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' },
+  title:     { fontSize: '24px', fontWeight: 700, color: '#f1f5f9' },
+  subtitle:  { fontSize: '14px', color: '#64748b' },
+  grid4:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' },
+  grid2:     { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' },
+  card:      { background: '#1e2433', borderRadius: '12px', padding: '20px', border: '1px solid #2d3748' },
   cardTitle: { fontSize: '13px', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' },
-  bigNum: { fontSize: '32px', fontWeight: 700, color: '#f1f5f9' },
-  label: { fontSize: '12px', color: '#64748b', marginTop: '4px' },
-  badge: (risk: string) => ({
-    display: 'inline-block', padding: '2px 8px', borderRadius: '999px', fontSize: '11px',
-    background: (RISK_COLOR as any)[risk] + '22', color: (RISK_COLOR as any)[risk], fontWeight: 600,
-  }),
-  table: { width: '100%', borderCollapse: 'collapse' as const },
-  th: { textAlign: 'left' as const, padding: '8px 12px', fontSize: '12px', color: '#64748b', borderBottom: '1px solid #2d3748' },
-  td: { padding: '10px 12px', fontSize: '13px', borderBottom: '1px solid #1a2030' },
-  tag: { display: 'inline-block', padding: '2px 8px', background: '#0f1928', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' },
-  loader: { textAlign: 'center' as const, color: '#64748b', padding: '60px' },
+  bigNum:    { fontSize: '32px', fontWeight: 700, color: '#f1f5f9' },
+  label:     { fontSize: '12px', color: '#64748b', marginTop: '4px' },
+  table:     { width: '100%', borderCollapse: 'collapse' },
+  th:        { textAlign: 'left', padding: '8px 12px', fontSize: '12px', color: '#64748b', borderBottom: '1px solid #2d3748' },
+  td:        { padding: '10px 12px', fontSize: '13px', borderBottom: '1px solid #1a2030' },
+  tag:       { display: 'inline-block', padding: '2px 8px', background: '#0f1928', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' },
+  loader:    { textAlign: 'center', color: '#64748b', padding: '60px' },
 }
 
 function KPI({ icon, title, value, sub }: { icon: React.ReactNode; title: string; value: string; sub: string }) {
@@ -44,13 +59,13 @@ function KPI({ icon, title, value, sub }: { icon: React.ReactNode; title: string
 }
 
 export default function App() {
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [allocs, setAllocs] = useState<AllocationItem[]>([])
-  const [recs, setRecs] = useState<RecommendationsResponse | null>(null)
-  const [billing, setBilling] = useState<BillingResponse | null>(null)
-  const [window_, setWindow] = useState('30d')
-  const [tab, setTab] = useState<'overview' | 'namespaces' | 'recommendations' | 'billing'>('overview')
-  const [loading, setLoading] = useState(true)
+  const [summary, setSummary]   = useState<Summary | null>(null)
+  const [allocs, setAllocs]     = useState<AllocationItem[]>([])
+  const [recs, setRecs]         = useState<RecommendationsResponse | null>(null)
+  const [billing, setBilling]   = useState<BillingResponse | null>(null)
+  const [window_, setWindow]    = useState('30d')
+  const [tab, setTab]           = useState<'overview' | 'namespaces' | 'recommendations' | 'billing'>('overview')
+  const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
     setLoading(true)
@@ -64,7 +79,8 @@ export default function App() {
 
   const tabs = ['overview', 'namespaces', 'recommendations', 'billing'] as const
   const tabLabel: Record<typeof tabs[number], string> = {
-    overview: 'Обзор', namespaces: 'Неймспейсы', recommendations: 'Рекомендации', billing: 'Биллинг YC',
+    overview: 'Обзор', namespaces: 'Неймспейсы',
+    recommendations: 'Рекомендации', billing: 'Биллинг YC',
   }
 
   return (
@@ -81,10 +97,11 @@ export default function App() {
           <div style={s.subtitle}>Yandex Cloud · Kubernetes Cost Intelligence</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-          {['7d', '30d', '90d'].map(w => (
+          {(['7d', '30d', '90d'] as const).map(w => (
             <button key={w} onClick={() => setWindow(w)} style={{
               padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-              background: window_ === w ? '#00d4b1' : '#1e2433', color: window_ === w ? '#0f1117' : '#94a3b8',
+              background: window_ === w ? '#00d4b1' : '#1e2433',
+              color: window_ === w ? '#0f1117' : '#94a3b8',
               fontWeight: 600, fontSize: '13px',
             }}>{w}</button>
           ))}
@@ -97,7 +114,8 @@ export default function App() {
           <button key={t} onClick={() => setTab(t)} style={{
             padding: '8px 18px', borderRadius: '8px', border: 'none', cursor: 'pointer',
             background: tab === t ? '#2d3748' : 'transparent',
-            color: tab === t ? '#f1f5f9' : '#64748b', fontSize: '14px', fontWeight: tab === t ? 600 : 400,
+            color: tab === t ? '#f1f5f9' : '#64748b',
+            fontSize: '14px', fontWeight: tab === t ? 600 : 400,
           }}>{tabLabel[t]}</button>
         ))}
       </div>
@@ -107,22 +125,28 @@ export default function App() {
       {!loading && tab === 'overview' && (
         <>
           <div style={s.grid4}>
-            <KPI icon={<DollarSign size={24}/>} title="Всего расходов" value={`₽ ${(summary?.total_cost ?? 0).toLocaleString('ru')}`} sub={`за ${window_}`}/>
-            <KPI icon={<Server size={24}/>} title="Неймспейсов" value={String(summary?.namespace_count ?? 0)} sub="активных"/>
-            <KPI icon={<TrendingDown size={24}/>} title="Потенциал экономии" value={`₽ ${(recs?.estimated_monthly_saving ?? 0).toLocaleString('ru')}`} sub="в месяц"/>
-            <KPI icon={<AlertTriangle size={24}/>} title="Рекомендации" value={String(recs?.count ?? 0)} sub="активных"/>
+            <KPI icon={<DollarSign size={24}/>} title="Всего расходов"
+              value={`₽ ${(summary?.total_cost ?? 0).toLocaleString('ru')}`} sub={`за ${window_}`}/>
+            <KPI icon={<Server size={24}/>} title="Неймспейсов"
+              value={String(summary?.namespace_count ?? 0)} sub="активных"/>
+            <KPI icon={<TrendingDown size={24}/>} title="Потенциал экономии"
+              value={`₽ ${(recs?.estimated_monthly_saving ?? 0).toLocaleString('ru')}`} sub="в месяц"/>
+            <KPI icon={<AlertTriangle size={24}/>} title="Рекомендации"
+              value={String(recs?.count ?? 0)} sub="активных"/>
           </div>
 
           <div style={s.grid2}>
             <div style={s.card}>
               <div style={s.cardTitle}>Топ неймспейсов по затратам (₽)</div>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={summary?.top_namespaces.map(n => ({ name: n.namespace.slice(0,14), cost: n.cost })) ?? []}>
+                <BarChart data={summary?.top_namespaces.map(n => ({ name: n.namespace.slice(0, 14), cost: n.cost })) ?? []}>
                   <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false}/>
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false}/>
                   <Tooltip contentStyle={{ background: '#1e2433', border: '1px solid #2d3748', borderRadius: '8px', color: '#f1f5f9' }}/>
-                  <Bar dataKey="cost" radius={[4,4,0,0]}>
-                    {(summary?.top_namespaces ?? []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]}/>)}
+                  <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
+                    {(summary?.top_namespaces ?? []).map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]}/>
+                    ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -131,11 +155,14 @@ export default function App() {
             <div style={s.card}>
               <div style={s.cardTitle}>Фактические расходы YC (топ сервисы)</div>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={(billing?.by_service ?? []).slice(0,6).map(s => ({ name: s.service.slice(0,14), cost: s.cost }))} layout="vertical">
+                <BarChart
+                  data={(billing?.by_service ?? []).slice(0, 6).map(b => ({ name: b.service.slice(0, 14), cost: b.cost }))}
+                  layout="vertical"
+                >
                   <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false}/>
                   <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} width={100}/>
                   <Tooltip contentStyle={{ background: '#1e2433', border: '1px solid #2d3748', borderRadius: '8px', color: '#f1f5f9' }}/>
-                  <Bar dataKey="cost" fill="#3b82f6" radius={[0,4,4,0]}/>
+                  <Bar dataKey="cost" fill="#3b82f6" radius={[0, 4, 4, 0]}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -148,8 +175,8 @@ export default function App() {
           <div style={{ ...s.cardTitle, marginBottom: '16px' }}>Расходы по неймспейсам — {window_}</div>
           <table style={s.table}>
             <thead>
-              <tr>
-                {['Namespace','CPU (₽)','RAM (₽)','PV (₽)','Итого (₽)'].map(h => <th key={h} style={s.th}>{h}</th>)}
+              <tr>{['Namespace', 'CPU (₽)', 'RAM (₽)', 'PV (₽)', 'Итого (₽)'].map(h =>
+                <th key={h} style={s.th}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -177,7 +204,9 @@ export default function App() {
           </div>
           <table style={s.table}>
             <thead>
-              <tr>{['Ресурс','Тип','Описание','Риск','Экономия (₽)'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+              <tr>{['Ресурс', 'Тип', 'Описание', 'Риск', 'Экономия (₽)'].map(h =>
+                <th key={h} style={s.th}>{h}</th>)}
+              </tr>
             </thead>
             <tbody>
               {(recs?.items ?? []).map((r, i) => (
@@ -185,7 +214,7 @@ export default function App() {
                   <td style={s.td}><span style={s.tag}>{r.resource}</span></td>
                   <td style={s.td}><span style={{ color: '#94a3b8' }}>{r.type}</span></td>
                   <td style={{ ...s.td, maxWidth: '300px', color: '#94a3b8', fontSize: '12px' }}>{r.description}</td>
-                  <td style={s.td}><span style={s.badge(r.risk)}>{r.risk}</span></td>
+                  <td style={s.td}><span style={badgeStyle(r.risk)}>{r.risk}</span></td>
                   <td style={{ ...s.td, fontWeight: 600, color: '#00d4b1' }}>
                     {r.potential_saving != null ? r.potential_saving.toFixed(2) : '—'}
                   </td>
@@ -205,7 +234,7 @@ export default function App() {
             </div>
           </div>
           <table style={s.table}>
-            <thead><tr>{['Сервис YC','Расходы (₽)'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Сервис YC', 'Расходы (₽)'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
             <tbody>
               {(billing?.by_service ?? []).map((b, i) => (
                 <tr key={i}>

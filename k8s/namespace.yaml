@@ -3,5 +3,4 @@ kind: Namespace
 metadata:
   name: finops
   labels:
-    team: platform
-    env: production
+    app.kubernetes.io/managed-by: argocd

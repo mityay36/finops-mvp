@@ -3,9 +3,12 @@ kind: Service
 metadata:
   name: finops-api
   namespace: finops
+  labels:
+    app: finops-api
 spec:
   selector:
     app: finops-api
   ports:
-    - port: 8000
+    - name: http
+      port: 8000
       targetPort: 8000
