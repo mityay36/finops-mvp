@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPO_URL="${1:-https://github.com/YOUR_USERNAME/finops-mvp}"
+REPO_URL="${1:-https://github.com/mityay36/finops-mvp}"
 echo "Bootstrap FinOps MVP → $REPO_URL"
 
 # 1. Prometheus Operator CRDs
@@ -13,7 +13,7 @@ helm upgrade --install prometheus-operator-crds \
 # 2. ArgoCD
 echo "[2/5] Installing ArgoCD..."
 kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -n argocd \
+kubectl apply -n argocd --server-side --force-conflicts \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 kubectl wait --for=condition=available --timeout=120s deployment/argocd-server -n argocd
 
