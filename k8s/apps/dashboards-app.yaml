@@ -9,11 +9,11 @@ spec:
     repoURL: https://github.com/mityay36/finops-mvp
     targetRevision: main
     path: k8s/dashboards
-
+    directory:
+      include: "configmap-*.yaml"   # ← только ConfigMap-манифесты, JSON игнорируем
   destination:
     server: https://kubernetes.default.svc
     namespace: vmks
-
   syncPolicy:
     automated:
       prune: true
