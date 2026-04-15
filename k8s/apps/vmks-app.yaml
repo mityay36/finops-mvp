@@ -7,12 +7,9 @@ metadata:
 spec:
   project: default
   sources:
-    # Источник 1: values.yaml из Git-репозитория
     - repoURL: https://github.com/mityay36/finops-mvp
       targetRevision: main
       ref: gitrepo
-
-    # Источник 2: Helm-чарт из OCI (значения берём из Git через ref выше)
     - repoURL: ghcr.io/victoriametrics/helm-charts
       chart: victoria-metrics-k8s-stack
       targetRevision: 0.72.6
@@ -20,11 +17,9 @@ spec:
         releaseName: vmks
         valueFiles:
           - $gitrepo/k8s/vmks/values.yaml
-
   destination:
     server: https://kubernetes.default.svc
     namespace: vmks
-
   syncPolicy:
     automated:
       prune: true
@@ -32,13 +27,25 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+      - Validate=false
       - RespectIgnoreDifferences=true
   ignoreDifferences:
-    - group: "admissionregistration.k8s.io"
-      kind: "MutatingWebhookConfiguration"
+    - group: ""
+      kind: Secret
+      name: vmks-victoria-metrics-operator-validation
+      namespace: vmks
       jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
-    - group: "admissionregistration.k8s.io"
-      kind: "ValidatingWebhookConfiguration"
+        - /data
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: vmks-victoria-metrics-operator-admission
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - kind: Secret
       jsonPointers:
-        - /webhooks/0/clientConfig/caBundle
+        - /data/admin-password
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1secret

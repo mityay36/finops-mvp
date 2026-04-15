@@ -1,4 +1,6 @@
 # vmks/values.yaml — VictoriaMetrics K8s Stack
+argocdReleaseOverride: "vmks"
+
 victoria-metrics-operator:
   admissionWebhooks:
     enabled: false
