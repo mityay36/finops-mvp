@@ -1,0 +1,116 @@
+name: CI — Validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  # Job 1: Scan for secrets
+  secrets-scan:
+    name: Secrets Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job 2: Lint YAML
+  lint-yaml:
+    name: Lint YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: yamllint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: k8s/
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 150
+              truthy:
+                allowed-values: ['true', 'false']
+              comments:
+                min-spaces-from-content: 1
+
+  # Job 3: Validate K8s manifests
+  validate-manifests:
+    name: Validate K8s Manifests (kubeconform)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz && sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate manifests
+        run: |
+          kubeconform \
+            -strict \
+            -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary \
+            $(find k8s/manifests k8s/dashboards -name "*.yaml" 2>/dev/null | tr '\n' ' ')
+
+  # Job 4: Validate Helm values
+  validate-helm:
+    name: Validate Helm Values
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Pull and validate vmks chart
+        run: |
+          helm pull oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-k8s-stack \
+            --version 0.72.6 --untar --untardir /tmp/charts
+          helm template vmks /tmp/charts/victoria-metrics-k8s-stack \
+            --namespace vmks \
+            --values k8s/vmks/values.yaml \
+            --dry-run > /dev/null
+          echo "Vmks values valid"
+
+      - name: Pull and validate opencost chart
+        run: |
+          helm pull oci://ghcr.io/opencost/charts/opencost \
+            --version 2.5.10 --untar --untardir /tmp/charts
+          helm template opencost /tmp/charts/opencost \
+            --namespace opencost \
+            --values k8s/opencost/values.yaml \
+            --dry-run > /dev/null
+          echo "Opencost values valid"
+
+  # Job 5: Validate ArgoCD Applications
+  validate-argocd-apps:
+    name: Validate ArgoCD Apps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz && sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate ArgoCD Application manifests
+        run: |
+          kubeconform \
+            -strict \
+            -ignore-missing-schemas \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary \
+            k8s/apps/*.yaml

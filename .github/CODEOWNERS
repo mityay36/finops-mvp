@@ -1,0 +1,7 @@
+# FinOps MVP Code Owners
+* @mityay36
+
+# K8s infrastructure changes require review
+k8s/apps/ @mityay36
+k8s/vmks/ @mityay36
+k8s/opencost/ @mityay36

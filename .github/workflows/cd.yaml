@@ -1,0 +1,107 @@
+name: CD — Health Check
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  argocd-health-check:
+    name: ArgoCD Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_YC }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Wait for ArgoCD sync
+        run: |
+          echo "Waiting for ArgoCD to pick up changes..."
+          sleep 30
+
+          # Проверяем статус всех приложений
+          APPS=(finops-root vmks opencost grafana-dashboards finops-manifests)
+          ALL_HEALTHY=true
+
+          for APP in "${APPS[@]}"; do
+            echo "Checking $APP..."
+
+            # Ждём sync до 5 минут
+            for i in $(seq 1 30); do
+              STATUS=$(kubectl get application "$APP" -n argocd \
+                -o jsonpath='{.status.health.status}' 2>/dev/null || echo "NotFound")
+              SYNC=$(kubectl get application "$APP" -n argocd \
+                -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+
+              echo "  $APP: health=$STATUS sync=$SYNC"
+
+              if [ "$STATUS" = "Healthy" ] && [ "$SYNC" = "Synced" ]; then
+                echo "  $APP is Healthy and Synced"
+                break
+              fi
+
+              if [ $i -eq 30 ]; then
+                echo "  $APP failed to become healthy"
+                ALL_HEALTHY=false
+              fi
+
+              sleep 10
+            done
+          done
+
+          if [ "$ALL_HEALTHY" = "false" ]; then
+            echo "One or more ArgoCD applications are not healthy"
+            exit 1
+          fi
+
+          echo "All ArgoCD applications are Healthy and Synced"
+
+      - name: Verify OpenCost API
+        run: |
+          # Port-forward OpenCost и проверяем что API отвечает
+          kubectl port-forward svc/opencost -n opencost 9003:9003 &
+          PF_PID=$!
+          sleep 5
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "http://localhost:9003/allocation/compute?window=24h&aggregate=namespace")
+
+          kill $PF_PID 2>/dev/null || true
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "OpenCost API healthy (HTTP $HTTP_CODE)"
+          else
+            echo "⚠️  OpenCost API returned HTTP $HTTP_CODE"
+            # Не фейлим пайплайн — API может быть временно недоступен
+          fi
+
+      - name: Post deployment summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Application | Health | Sync |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          for APP in finops-root vmks opencost grafana-dashboards finops-manifests; do
+            HEALTH=$(kubectl get application "$APP" -n argocd \
+              -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+            SYNC=$(kubectl get application "$APP" -n argocd \
+              -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+
+            if [ "$HEALTH" = "Healthy" ]; then
+              ICON="✅"
+            else
+              ICON="❌"
+            fi
+
+            echo "| $ICON $APP | $HEALTH | $SYNC |" >> $GITHUB_STEP_SUMMARY
+          done
