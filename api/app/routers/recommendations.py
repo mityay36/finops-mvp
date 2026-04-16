@@ -80,23 +80,38 @@ async def get_recommendations(window: str = Query("24h")):
     # Берём стоимость нод из YC Billing и рекомендуем preemptible
     billing = yc_billing.get_actual_costs(days=30)
     node_cost = billing.get("total", 0)
+    already_preemptible = billing.get("has_preemptible_nodes", False)
 
     low_util_nodes = [n for n in node_utils if n["cpu_utilization"] < NODE_UTILIZATION_THRESHOLD]
-    if low_util_nodes and node_cost > 0:
-        saving = round(node_cost * PREEMPTIBLE_SAVING_RATIO * 0.5, 2)  # 50% нод -> preemptible
-        node_names = ", ".join(n["node"] for n in low_util_nodes[:3])
+
+    if low_util_nodes and not already_preemptible:
+        # Ноды on-demand -> рекомендуем преобразовать в preemptible
+        saving = round(node_cost * PREEMPTIBLE_SAVING_RATIO * 0.5, 2)
         results.append({
             "type": "spot_migration",
             "resource": "node-group/k8s-workers",
             "description": (
-                f"Ноды ({node_names}) загружены менее {NODE_UTILIZATION_THRESHOLD*100:.0f}% CPU. "
-                f"Stateless workloads можно перевести на preemptible ноды YC (экономия ~80%)"
+                f"Worker ноды загружены < {NODE_UTILIZATION_THRESHOLD*100:.0f}% CPU. "
+                f"Перевод на preemptible ноды YC даст экономию ~80%"
             ),
-            "affected_nodes": len(low_util_nodes),
             "potential_saving": saving,
             "risk": "medium",
             "action": "convert_to_preemptible",
             "notes": "Требует настройки PodDisruptionBudget и graceful termination",
+        })
+    elif already_preemptible and low_util_nodes:
+        # Ноды уже preemptible — рекомендуем уменьшить размер node group
+        results.append({
+            "type": "node_downsize",
+            "resource": "node-group/k8s-workers",
+            "description": (
+                f"Ноды уже preemptible, но загружены < {NODE_UTILIZATION_THRESHOLD*100:.0f}% CPU. "
+                f"Рассмотрите уменьшение RAM/CPU профиля нод или сокращение их количества"
+            ),
+            "potential_saving": round(node_cost * 0.2, 2),  # 20% от уменьшения профиля
+            "risk": "medium",
+            "action": "resize_node_group",
+            "notes": "Проверьте пиковую нагрузку перед изменением",
         })
 
     # 4. VPA RIGHTSIZING (если VPA задеплоен)

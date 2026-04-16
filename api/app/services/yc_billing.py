@@ -1,76 +1,139 @@
-import io
+# app/services/yc_billing.py — обновлённая версия
+
+import csv, io
+from collections import defaultdict
 import boto3
-import pandas as pd
-from datetime import datetime, timedelta
 from app.config import settings
+
 
 class YCBillingService:
     def __init__(self):
         self.s3 = boto3.client(
             "s3",
-            endpoint_url=settings.yc_endpoint,
-            aws_access_key_id=settings.yc_access_key,
-            aws_secret_access_key=settings.yc_secret_key,
-            region_name=settings.yc_region,
+            endpoint_url="https://storage.yandexcloud.net",
+            aws_access_key_id=settings.yc_key_id,
+            aws_secret_access_key=settings.yc_key_secret,
         )
-        self.bucket = settings.yc_bucket
+        self.bucket = settings.yc_billing_bucket
+        self.prefix = settings.yc_billing_prefix
 
-    def _list_recent_csvs(self, days: int = 30) -> list[str]:
-        cutoff = datetime.utcnow() - timedelta(days=days)
+    def _get_csv_keys(self, days: int = 30) -> list[str]:
         keys = []
-        try:
-            paginator = self.s3.get_paginator("list_objects_v2")
-            for page in paginator.paginate(Bucket=self.bucket, Prefix="billing/"):
-                for obj in page.get("Contents", []):
-                    if obj["LastModified"].replace(tzinfo=None) > cutoff:
-                        keys.append(obj["Key"])
-        except Exception:
-            pass
-        return keys
+        paginator = self.s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=self.prefix):
+            for obj in page.get("Contents", []):
+                keys.append(obj["Key"])
+        return sorted(keys)[-days:]
+
+    def _parse_resource_name(self, row: dict) -> str:
+        """Строит человекочитаемое имя ресурса из полей CSV"""
+        # K8s-ресурс с лейблом
+        svc_name = row.get("label.user_labels.service-name", "").strip()
+        svc_ns = row.get("label.user_labels.service-namespace", "").strip()
+        vol_name = row.get("label.user_labels.volume-name", "").strip()
+
+        if vol_name:
+            return f"PVC: {vol_name}"
+        if svc_name and svc_ns:
+            return f"{svc_ns}/{svc_name}"
+        if svc_name:
+            return svc_name
+
+        # Облачный ресурс — по service_name + sku_name
+        service = row.get("service_name", "").strip()
+        sku = row.get("sku_name", "").strip()
+        resource_id = row.get("resource_id", "").strip()
+
+        # Укорачиваем sku до сути
+        sku_short = sku
+        if "Preemptible VM" in sku:
+            sku_short = "Preemptible VM"
+        elif "Standard disk drive" in sku:
+            sku_short = "HDD"
+        elif "Network Load Balancer" in sku:
+            sku_short = "NLB"
+        elif "Public IP address" in sku:
+            sku_short = "Public IP"
+        elif "Master" in sku and "Kubernetes" in service:
+            return "K8s Master"
+        elif "Zonal master" in sku:
+            return "K8s Zonal Master"
+        elif "Container Registry" in service:
+            sku_short = "Container Registry"
+        elif "Object Storage" in service:
+            sku_short = "Object Storage"
+        elif "Key Management" in service:
+            sku_short = "KMS Key"
+        elif "Cloud DNS" in service:
+            sku_short = "Cloud DNS"
+
+        if resource_id:
+            # Короткий id для tooltip: последние 8 символов
+            short_id = resource_id[-8:]
+            return f"{service} / {sku_short} (...{short_id})"
+        return f"{service} / {sku_short}"
+
+    def _is_preemptible(self, row: dict) -> bool:
+        return "Preemptible" in row.get("sku_name", "")
 
     def get_actual_costs(self, days: int = 30) -> dict:
-        keys = self._list_recent_csvs(days)
-        if not keys:
-            return {"error": "No billing CSVs found", "total": 0, "by_service": []}
+        keys = self._get_csv_keys(days)
+        total = 0.0
+        by_service = defaultdict(float)
+        by_namespace = defaultdict(float)
+        resources = []  # детализация ресурсов
+        has_preemptible = False
 
-        dfs = []
         for key in keys:
-            try:
-                obj = self.s3.get_object(Bucket=self.bucket, Key=key)
-                df = pd.read_csv(io.BytesIO(obj["Body"].read()))
-                dfs.append(df)
-            except Exception:
-                continue
+            obj = self.s3.get_object(Bucket=self.bucket, Key=key)
+            content = obj["Body"].read().decode("utf-8")
+            reader = csv.DictReader(io.StringIO(content))
+            for row in reader:
+                cost = float(row.get("cost", 0) or 0)
+                service = row.get("service_name", "Unknown")
+                resource_id = row.get("resource_id", "")
+                namespace = row.get("label.user_labels.service-namespace", "")
 
-        if not dfs:
-            return {"error": "Failed to parse CSVs", "total": 0, "by_service": []}
+                if self._is_preemptible(row):
+                    has_preemptible = True
 
-        combined = pd.concat(dfs, ignore_index=True)
+                total += cost
+                by_service[service] += cost
+                if namespace:
+                    by_namespace[namespace] += cost
 
-        # YC billing CSV columns: service_name, cost, currency, usage_date
-        cost_col = next((c for c in combined.columns if "cost" in c.lower()), None)
-        svc_col = next((c for c in combined.columns
-    if any(x in c.lower() for x in ["service_name", "product", "service"])), None)
+                if cost > 0:
+                    resources.append({
+                        "resource_id": resource_id,
+                        "resource_name": self._parse_resource_name(row),
+                        "service_name": service,
+                        "sku_name": row.get("sku_name", ""),
+                        "cost": round(cost, 4),
+                        "is_preemptible": self._is_preemptible(row),
+                        "namespace": namespace or None,
+                    })
 
-        if not cost_col or not svc_col:
-            return {"raw_columns": list(combined.columns), "total": 0, "by_service": []}
+        # Агрегируем по resource_name для дедупликации
+        agg = defaultdict(lambda: {"cost": 0.0, "resource_id": "", "service_name": "", "is_preemptible": False})
+        for r in resources:
+            key_name = r["resource_name"]
+            agg[key_name]["cost"] += r["cost"]
+            agg[key_name]["resource_id"] = r["resource_id"]
+            agg[key_name]["service_name"] = r["service_name"]
+            agg[key_name]["is_preemptible"] = r["is_preemptible"]
 
-        combined[cost_col] = pd.to_numeric(combined[cost_col], errors="coerce").fillna(0)
-        by_service = (
-            combined.groupby(svc_col)[cost_col]
-            .sum()
-            .sort_values(ascending=False)
-            .head(10)
-        )
+        top_resources = sorted(
+            [{"resource_name": k, **v, "cost": round(v["cost"], 2)} for k, v in agg.items()],
+            key=lambda x: -x["cost"]
+        )[:15]
 
         return {
-            "total": round(float(combined[cost_col].sum()), 2),
-            "currency": "RUB",
-            "period_days": days,
-            "by_service": [
-                {"service": k, "cost": round(float(v), 2)}
-                for k, v in by_service.items()
-            ],
+            "total": round(total, 2),
+            "has_preemptible_nodes": has_preemptible,
+            "by_service": {k: round(v, 2) for k, v in sorted(by_service.items(), key=lambda x: -x[1])},
+            "by_namespace": {k: round(v, 2) for k, v in sorted(by_namespace.items(), key=lambda x: -x[1])},
+            "top_resources": top_resources,
         }
+
 
 yc_billing = YCBillingService()
