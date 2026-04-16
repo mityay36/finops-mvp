@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: cr.yandex/crppm2p2j5q3tmf17su4/finops-frontend:5b214db
+          image: cr.yandex/crppm2p2j5q3tmf17su4/finops-frontend:d32f76b
           ports:
             - containerPort: 80
           resources:
