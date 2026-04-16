@@ -49,7 +49,8 @@ class YCBillingService:
 
         # YC billing CSV columns: service_name, cost, currency, usage_date
         cost_col = next((c for c in combined.columns if "cost" in c.lower()), None)
-        svc_col = next((c for c in combined.columns if "service" in c.lower()), None)
+        svc_col = next((c for c in combined.columns
+    if any(x in c.lower() for x in ["service_name", "product", "service"])), None)
 
         if not cost_col or not svc_col:
             return {"raw_columns": list(combined.columns), "total": 0, "by_service": []}
