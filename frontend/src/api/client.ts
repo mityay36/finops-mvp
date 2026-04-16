@@ -37,14 +37,33 @@ export interface RecommendationsResponse {
 
 export interface BillingResponse {
   total: number
-  currency: string
-  period_days: number
-  by_service: { service: string; cost: number }[]
+  has_preemptible_nodes: boolean
+  by_service: { service: string; cost: number }[]   // держим как массив для UI
+  by_namespace: { namespace: string; cost: number }[]
+  top_resources: {
+    resource_name: string
+    resource_id: string
+    service_name: string
+    cost: number
+    is_preemptible: boolean
+    namespace: string | null
+  }[]
 }
 
 export const api = {
   summary: (w = '30d') => get<Summary>(`/api/v1/summary?window=${w}`),
   allocations: (w = '30d') => get<{ items: AllocationItem[] }>(`/api/v1/allocations?window=${w}`),
   recommendations: () => get<RecommendationsResponse>(`/api/v1/recommendations`),
-  billing: () => get<BillingResponse>(`/api/v1/billing/actual`),
+  // трансформируем объект в массив прямо в клиенте
+  billing: () => get<Record<string, unknown>>(`/api/v1/billing/actual`).then(raw => ({
+    total: raw.total as number,
+    has_preemptible_nodes: raw.has_preemptible_nodes as boolean,
+    by_service: Object.entries((raw.by_service ?? {}) as Record<string, number>)
+      .map(([service, cost]) => ({ service, cost }))
+      .sort((a, b) => b.cost - a.cost),
+    by_namespace: Object.entries((raw.by_namespace ?? {}) as Record<string, number>)
+      .map(([namespace, cost]) => ({ namespace, cost }))
+      .sort((a, b) => b.cost - a.cost),
+    top_resources: (raw.top_resources ?? []) as BillingResponse['top_resources'],
+  } as BillingResponse)),
 }

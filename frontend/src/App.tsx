@@ -229,10 +229,46 @@ export default function App() {
         <div style={s.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
             <div style={s.cardTitle}>Фактический биллинг YC — CSV из Object Storage</div>
-            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '20px' }}>
-              ₽ {(billing?.total ?? 0).toLocaleString('ru')}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              {billing?.has_preemptible_nodes && (
+                <span style={{ fontSize: '12px', color: '#00d4b1', background: '#00d4b122', padding: '4px 10px', borderRadius: '999px' }}>
+                  ✓ Preemptible ноды активны
+                </span>
+              )}
+              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '20px' }}>
+                ₽ {(billing?.total ?? 0).toLocaleString('ru')}
+              </div>
             </div>
           </div>
+
+          {/* Топ ресурсов */}
+          <div style={{ ...s.cardTitle, marginBottom: '12px', marginTop: '8px' }}>Топ ресурсов</div>
+          <table style={s.table}>
+            <thead>
+              <tr>{['Ресурс', 'Сервис', 'Preemptible', 'Расходы (₽)'].map(h =>
+                <th key={h} style={s.th}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {(billing?.top_resources ?? []).slice(0, 10).map((r, i) => (
+                <tr key={i}>
+                  <td style={s.td}>
+                    <span style={s.tag} title={r.resource_id}>{r.resource_name}</span>
+                  </td>
+                  <td style={{ ...s.td, color: '#94a3b8', fontSize: '12px' }}>{r.service_name}</td>
+                  <td style={s.td}>
+                    {r.is_preemptible
+                      ? <span style={{ color: '#00d4b1' }}>✓</span>
+                      : <span style={{ color: '#64748b' }}>—</span>}
+                  </td>
+                  <td style={{ ...s.td, fontWeight: 600 }}>₽ {r.cost.toLocaleString('ru')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* По сервисам */}
+          <div style={{ ...s.cardTitle, marginBottom: '12px', marginTop: '24px' }}>По сервисам YC</div>
           <table style={s.table}>
             <thead><tr>{['Сервис YC', 'Расходы (₽)'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
             <tbody>
