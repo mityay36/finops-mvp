@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { TrendingDown, Server, AlertTriangle, DollarSign } from 'lucide-react'
+import { TrendingDown, Server, AlertTriangle } from 'lucide-react'
 import { api, Summary, AllocationItem, RecommendationsResponse, BillingResponse } from './api/client'
 import type { CSSProperties } from 'react'
 
@@ -125,8 +125,8 @@ export default function App() {
       {!loading && tab === 'overview' && (
         <>
           <div style={s.grid4}>
-            <KPI icon={<DollarSign size={24}/>} title="Всего расходов"
-              value={`₽ ${(summary?.total_cost ?? 0).toLocaleString('ru')}`} sub={`за ${window_}`}/>
+            <KPI icon={<span style={{ fontSize: '20px', fontWeight: 700 }}>₽</span>} title="Всего расходов"
+              value={`₽ ${(billing?.total ?? 0).toLocaleString('ru')}`} sub="фактически за месяц"/>
             <KPI icon={<Server size={24}/>} title="Неймспейсов"
               value={String(summary?.namespace_count ?? 0)} sub="активных"/>
             <KPI icon={<TrendingDown size={24}/>} title="Потенциал экономии"
