@@ -25,6 +25,9 @@ kubectl apply -f k8s/ingress.yaml
 echo "=== 5. Registering ArgoCD Applications ==="
 kubectl apply -f k8s/argocd/
 
+echo "=== 6. Ingress for services ==="
+kubectl apply -f k8s/ingress.yaml
+
 echo "=== Done! ==="
 echo "ArgoCD will now watch the repo and keep cluster in sync."
 echo ""
