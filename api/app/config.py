@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     vm_url: str = "http://vmsingle-vmks-victoria-metrics-k8s-stack.vmks.svc.cluster.local:8428"
 
     yc_bucket: str = "finops-billing"
+    yc_prefix: str = "billing/"
     yc_region: str = "ru-central1"
     yc_endpoint: str = "https://storage.yandexcloud.net"
     yc_access_key: str = ""

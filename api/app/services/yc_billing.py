@@ -11,11 +11,11 @@ class YCBillingService:
         self.s3 = boto3.client(
             "s3",
             endpoint_url="https://storage.yandexcloud.net",
-            aws_access_key_id=settings.yc_key_id,
-            aws_secret_access_key=settings.yc_key_secret,
+            aws_access_key_id=settings.yc_access_key,
+            aws_secret_access_key=settings.yc_secret_key,
         )
-        self.bucket = settings.yc_billing_bucket
-        self.prefix = settings.yc_billing_prefix
+        self.bucket = settings.yc_bucket
+        self.prefix = settings.yc_prefix
 
     def _get_csv_keys(self, days: int = 30) -> list[str]:
         keys = []
