@@ -1,55 +1,118 @@
 from fastapi import APIRouter, Query
 from app.services.victoria_metrics import vm
 from app.services.opencost import opencost
+from app.services.yc_billing import yc_billing
 
 router = APIRouter()
 
-RISK_THRESHOLDS = {
-    "low": 0.10,      # <10% savings
-    "medium": 0.30,   # 10-30% savings
-    "high": 0.30,     # >30% savings
-}
+# Пороги для rightsizing
+CPU_RIGHTSIZING_THRESHOLD = 0.30   # использует < 30% от requests
+RAM_RIGHTSIZING_THRESHOLD = 0.30
+NODE_UTILIZATION_THRESHOLD = 0.40  # нода загружена < 40%
+
+# Системные namespace — не трогаем
+SYSTEM_NAMESPACES = {"kube-system", "kube-public", "kube-node-lease"}
+
+# Экономию от перехода на preemptible в YC оцениваем как 80%
+PREEMPTIBLE_SAVING_RATIO = 0.80
+
 
 @router.get("/recommendations")
 async def get_recommendations(window: str = Query("24h")):
-    allocs = await opencost.get_allocations(window=window)
-    idle = await vm.get_idle_namespaces(threshold=0.001)
-    vpa_recs = await vm.get_vpa_recommendations()
+    # Получаем данные из всех источников параллельно
+    import asyncio
+    allocs, cpu_ratios, ram_ratios, node_utils, vpa_recs = await asyncio.gather(
+        opencost.get_allocations(window="30d"),
+        vm.get_cpu_rightsizing(),
+        vm.get_ram_rightsizing(),
+        vm.get_node_utilization(),
+        vm.get_vpa_recommendations(),
+    )
 
-    idle_ns = {r["namespace"] for r in idle}
     results = []
 
-    # Idle namespace recommendations
-    for item in idle:
-        ns = item["namespace"]
-        cost = allocs.get(ns, {}).get("totalCost", 0)
+    # 1. RIGHTSIZING CPU
+    cpu_ratio_map = {r["namespace"]: r["cpu_ratio"] for r in cpu_ratios}
+    for ns, ratio in cpu_ratio_map.items():
+        if ns in SYSTEM_NAMESPACES:
+            continue
+        if ratio < CPU_RIGHTSIZING_THRESHOLD:
+            cost = allocs.get(ns, {}).get("totalCost", 0)
+            overcost = cost * (1 - ratio)
+            saving = round(overcost * 0.7, 2)  # консервативно 70% от overcost
+            pct = round((1 - ratio) * 100)
+            results.append({
+                "type": "rightsizing_cpu",
+                "resource": ns,
+                "description": (
+                    f"Namespace '{ns}' использует {round(ratio * 100)}% CPU от запрошенного. "
+                    f"Рекомендуется уменьшить requests на {pct}%"
+                ),
+                "current_ratio": ratio,
+                "potential_saving": saving,
+                "risk": "low" if ratio < 0.10 else "medium",
+                "action": "reduce_cpu_requests",
+            })
+
+    # 2. RIGHTSIZING RAM
+    ram_ratio_map = {r["namespace"]: r["ram_ratio"] for r in ram_ratios}
+    for ns, ratio in ram_ratio_map.items():
+        if ns in SYSTEM_NAMESPACES:
+            continue
+        if ratio < RAM_RIGHTSIZING_THRESHOLD:
+            cost = allocs.get(ns, {}).get("totalCost", 0)
+            saving = round(cost * (1 - ratio) * 0.6, 2)
+            pct = round((1 - ratio) * 100)
+            results.append({
+                "type": "rightsizing_ram",
+                "resource": ns,
+                "description": (
+                    f"Namespace '{ns}' использует {round(ratio * 100)}% RAM от запрошенного. "
+                    f"Рекомендуется уменьшить memory requests на {pct}%"
+                ),
+                "current_ratio": ratio,
+                "potential_saving": saving,
+                "risk": "low" if ratio < 0.10 else "medium",
+                "action": "reduce_ram_requests",
+            })
+
+    # 3. SPOT / PREEMPTIBLE НОДЫ
+    # Берём стоимость нод из YC Billing и рекомендуем preemptible
+    billing = yc_billing.get_actual_costs(days=30)
+    node_cost = billing.get("total", 0)
+
+    low_util_nodes = [n for n in node_utils if n["cpu_utilization"] < NODE_UTILIZATION_THRESHOLD]
+    if low_util_nodes and node_cost > 0:
+        saving = round(node_cost * PREEMPTIBLE_SAVING_RATIO * 0.5, 2)  # 50% нод -> preemptible
+        node_names = ", ".join(n["node"] for n in low_util_nodes[:3])
         results.append({
-            "type": "idle_namespace",
-            "resource": ns,
-            "description": f"Namespace '{ns}' has avg CPU {item['avg_cpu']:.6f} cores — consider scaling to zero",
-            "potential_saving": round(cost, 4),
-            "risk": "low",
-            "action": "scale_to_zero",
+            "type": "spot_migration",
+            "resource": "node-group/k8s-workers",
+            "description": (
+                f"Ноды ({node_names}) загружены менее {NODE_UTILIZATION_THRESHOLD*100:.0f}% CPU. "
+                f"Stateless workloads можно перевести на preemptible ноды YC (экономия ~80%)"
+            ),
+            "affected_nodes": len(low_util_nodes),
+            "potential_saving": saving,
+            "risk": "medium",
+            "action": "convert_to_preemptible",
+            "notes": "Требует настройки PodDisruptionBudget и graceful termination",
         })
 
-    # Rightsizing от VPA
-    for rec in vpa_recs[:10]:
+    # 4. VPA RIGHTSIZING (если VPA задеплоен)
+    for rec in vpa_recs[:5]:
         results.append({
-            "type": "rightsizing",
+            "type": "vpa_rightsizing",
             "resource": f"{rec['namespace']}/{rec['pod']}",
-            "description": f"VPA recommends {rec['recommended_cpu']} CPU for {rec['pod']}",
+            "description": f"VPA рекомендует {rec['recommended_cpu']} CPU для {rec['pod']}",
             "potential_saving": None,
-            "risk": "medium",
-            "action": "update_requests",
+            "risk": "low",
+            "action": "apply_vpa_recommendation",
             "recommended_value": rec["recommended_cpu"],
         })
 
-    # Сортируем: сначала с известной экономией, потом по риску
-    risk_order = {"low": 0, "medium": 1, "high": 2}
-    results.sort(key=lambda x: (
-        -(x.get("potential_saving") or 0),
-        risk_order.get(x["risk"], 9)
-    ))
+    # Сортировка: по убыванию экономии
+    results.sort(key=lambda x: -(x.get("potential_saving") or 0))
 
     total_savings = sum(r.get("potential_saving") or 0 for r in results)
 

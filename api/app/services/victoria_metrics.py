@@ -52,4 +52,50 @@ class VictoriaMetricsService:
             })
         return recs
 
+    async def get_cpu_rightsizing(self) -> list[dict]:
+        """CPU utilization ratio: used / requested per namespace"""
+        results = await self.query("""
+            sum by(namespace) (rate(container_cpu_usage_seconds_total{container!="",container!="POD",namespace!=""}[24h]))
+            /
+            sum by(namespace) (kube_pod_container_resource_requests{resource="cpu",namespace!=""})
+        """)
+        return [
+            {
+                "namespace": r["metric"].get("namespace", "unknown"),
+                "cpu_ratio": round(float(r["value"][1]), 4),
+            }
+            for r in results
+            if r["value"][1] not in ("NaN", "+Inf", "-Inf")
+        ]
+
+    async def get_ram_rightsizing(self) -> list[dict]:
+        """RAM utilization ratio: used / requested per namespace"""
+        results = await self.query("""
+            sum by(namespace) (container_memory_working_set_bytes{container!="",container!="POD",namespace!=""})
+            /
+            sum by(namespace) (kube_pod_container_resource_requests{resource="memory",namespace!=""})
+        """)
+        return [
+            {
+                "namespace": r["metric"].get("namespace", "unknown"),
+                "ram_ratio": round(float(r["value"][1]), 4),
+            }
+            for r in results
+            if r["value"][1] not in ("NaN", "+Inf", "-Inf")
+        ]
+
+    async def get_node_utilization(self) -> list[dict]:
+        """CPU utilization per node"""
+        results = await self.query("""
+            1 - avg by(node) (rate(node_cpu_seconds_total{mode="idle"}[1h]))
+        """)
+        return [
+            {
+                "node": r["metric"].get("node", "unknown"),
+                "cpu_utilization": round(float(r["value"][1]), 4),
+            }
+            for r in results
+            if r["value"][1] not in ("NaN", "+Inf", "-Inf")
+        ]
+
 vm = VictoriaMetricsService()
