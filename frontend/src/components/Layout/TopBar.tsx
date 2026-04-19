@@ -11,62 +11,59 @@ interface TopBarProps {
 }
 
 const WINDOWS = [
-  { label: '7д', value: '7d' },
+  { label: '7д',  value: '7d'  },
   { label: '30д', value: '30d' },
   { label: '90д', value: '90d' },
 ]
 
 export function TopBar({
-  theme,
-  onThemeToggle,
-  onMenuToggle,
-  window: selectedWindow,
-  onWindowChange,
-  onRefresh,
-  title,
+  theme, onThemeToggle, onMenuToggle,
+  window: selectedWindow, onWindowChange, onRefresh, title,
 }: TopBarProps) {
   return (
     <header
-      className="sticky top-0 z-10 flex items-center justify-between px-4 md:px-6 h-14 border-b"
+      className="sticky top-0 z-10 flex items-center justify-between px-4 md:px-5 h-12 border-b flex-shrink-0"
       style={{
         background: 'var(--color-surface)',
-        borderColor: 'oklch(from var(--color-text) l c h / 0.07)',
-        backdropFilter: 'blur(8px)',
+        borderColor: 'rgba(28,20,10,0.08)',
       }}
     >
-      {/* Left: hamburger + title */}
-      <div className="flex items-center gap-3">
+      {/* Left */}
+      <div className="flex items-center gap-2.5">
         <button
           onClick={onMenuToggle}
-          className="md:hidden p-2 rounded-lg transition-colors hover:bg-[var(--color-surface-offset)]"
+          className="md:hidden p-2 rounded-md transition-colors hover:bg-[var(--color-surface-offset)]"
           style={{ color: 'var(--color-text-muted)' }}
           aria-label="Открыть меню"
         >
-          <Menu size={18} />
+          <Menu size={16} />
         </button>
         {title && (
-          <h1 className="font-semibold text-base hidden md:block"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}>
+          <span
+            className="font-semibold text-sm hidden md:block"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
             {title}
-          </h1>
+          </span>
         )}
       </div>
 
-      {/* Right: window selector + actions */}
-      <div className="flex items-center gap-2">
+      {/* Right */}
+      <div className="flex items-center gap-1.5">
         {/* Window selector */}
-        <div className="flex items-center rounded-lg p-0.5 gap-0.5"
-             style={{ background: 'var(--color-surface-offset)' }}>
+        <div
+          className="flex items-center rounded-md p-0.5 gap-0.5"
+          style={{ background: 'var(--color-surface-offset)' }}
+        >
           {WINDOWS.map(({ label, value }) => (
             <button
               key={value}
               onClick={() => onWindowChange(value)}
-              className="px-3 py-1 rounded-md text-sm font-medium transition-all duration-150"
+              className="px-2.5 py-1 rounded-sm text-xs font-medium transition-all duration-150"
               style={{
                 background: selectedWindow === value ? 'var(--color-surface-2)' : 'transparent',
                 color: selectedWindow === value ? 'var(--color-text)' : 'var(--color-text-muted)',
                 boxShadow: selectedWindow === value ? 'var(--shadow-sm)' : 'none',
-                fontFamily: 'var(--font-body)',
               }}
             >
               {label}
@@ -78,22 +75,22 @@ export function TopBar({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="p-2 rounded-lg transition-all duration-150 hover:bg-[var(--color-surface-offset)] active:scale-95"
+            className="p-1.5 rounded-md transition-all hover:bg-[var(--color-surface-offset)] active:scale-95"
             style={{ color: 'var(--color-text-muted)' }}
-            aria-label="Обновить данные"
+            aria-label="Обновить"
           >
-            <RefreshCw size={15} />
+            <RefreshCw size={14} />
           </button>
         )}
 
-        {/* Theme toggle */}
+        {/* Theme */}
         <button
           onClick={onThemeToggle}
-          className="p-2 rounded-lg transition-all duration-150 hover:bg-[var(--color-surface-offset)] active:scale-95"
+          className="p-1.5 rounded-md transition-all hover:bg-[var(--color-surface-offset)] active:scale-95"
           style={{ color: 'var(--color-text-muted)' }}
           aria-label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
         >
-          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
         </button>
       </div>
     </header>

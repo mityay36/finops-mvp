@@ -16,7 +16,9 @@ interface KPICardProps {
   loading?: boolean
 }
 
-function AnimatedNumber({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) {
+function AnimatedNumber({ value, prefix = '', suffix = '' }: {
+  value: number; prefix?: string; suffix?: string
+}) {
   const motionValue = useMotionValue(0)
   const rounded = useTransform(motionValue, (v) =>
     `${prefix}${v.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`
@@ -24,7 +26,7 @@ function AnimatedNumber({ value, prefix = '', suffix = '' }: { value: number; pr
 
   useEffect(() => {
     const controls = animate(motionValue, value, {
-      duration: 1.2,
+      duration: 1.0,
       ease: [0.16, 1, 0.3, 1],
     })
     return controls.stop
@@ -48,18 +50,21 @@ export function KPICard({
 }: KPICardProps) {
   if (loading) {
     return (
-      <div className="rounded-xl p-5 border" style={{
-        background: 'var(--color-surface)',
-        borderColor: 'oklch(from var(--color-text) l c h / 0.08)',
-        boxShadow: 'var(--shadow-sm)',
-      }}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 space-y-3">
-            <div className="skeleton h-3 w-28 rounded" />
-            <div className="skeleton h-7 w-36 rounded" />
-            <div className="skeleton h-3 w-20 rounded" />
+      <div
+        className="rounded-lg p-4 border"
+        style={{
+          background: 'var(--color-surface)',
+          borderColor: 'rgba(28,20,10,0.09)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div className="skeleton rounded-md flex-shrink-0" style={{ width: 36, height: 36 }} />
+          <div className="flex-1 space-y-2 pt-0.5">
+            <div className="skeleton h-2.5 rounded" style={{ width: '60%' }} />
+            <div className="skeleton h-5 rounded" style={{ width: '80%' }} />
+            <div className="skeleton h-2.5 rounded" style={{ width: '40%' }} />
           </div>
-          <div className="skeleton w-10 h-10 rounded-lg flex-shrink-0" />
         </div>
       </div>
     )
@@ -69,50 +74,66 @@ export function KPICard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-xl p-5 border group hover:shadow-md transition-shadow duration-200"
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      className="rounded-lg p-4 border"
       style={{
         background: 'var(--color-surface)',
-        borderColor: 'oklch(from var(--color-text) l c h / 0.08)',
+        borderColor: 'rgba(28,20,10,0.09)',
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider mb-2"
-             style={{ color: 'var(--color-text-faint)', letterSpacing: '0.08em' }}>
-            {label}
-          </p>
-          <p className="font-display font-bold tabular text-2xl leading-none mb-2"
-             style={{ color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>
-            {animateValue && numericValue !== undefined ? (
-              <AnimatedNumber value={numericValue} prefix={prefix} suffix={suffix} />
-            ) : (
-              value
-            )}
-          </p>
-          {subtitle && (
-            <p className="text-xs" style={{ color: 'var(--color-text-faint)' }}>{subtitle}</p>
-          )}
-          {trend && (
-            <div className={cn(
-              'inline-flex items-center gap-1 text-xs font-medium mt-1',
-              isPositiveTrend ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'
-            )}>
-              <span>{isPositiveTrend ? '↑' : '↓'} {Math.abs(trend.value)}%</span>
-              <span style={{ color: 'var(--color-text-faint)' }}>{trend.label}</span>
-            </div>
-          )}
-        </div>
+      {/* Top row: icon + label */}
+      <div className="flex items-center gap-2.5 mb-3">
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
-          style={{ background: iconBg }}
+          className="rounded-md flex-shrink-0 flex items-center justify-center"
+          style={{ width: 32, height: 32, background: iconBg }}
         >
           {icon}
         </div>
+        <p
+          className="text-xs font-medium uppercase tracking-wider truncate"
+          style={{ color: 'var(--color-text-faint)', letterSpacing: '0.07em' }}
+        >
+          {label}
+        </p>
       </div>
+
+      {/* Value — большой */}
+      <p
+        className="kpi-value tabular"
+        style={{ color: 'var(--color-text)' }}
+      >
+        {animateValue && numericValue !== undefined ? (
+          <AnimatedNumber value={numericValue} prefix={prefix} suffix={suffix} />
+        ) : (
+          value
+        )}
+      </p>
+
+      {/* Subtitle */}
+      {subtitle && (
+        <p
+          className="mt-1.5 text-xs"
+          style={{ color: 'var(--color-text-faint)' }}
+        >
+          {subtitle}
+        </p>
+      )}
+
+      {/* Trend */}
+      {trend && (
+        <div
+          className={cn(
+            'inline-flex items-center gap-1 mt-1.5 text-xs font-medium',
+            isPositiveTrend ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'
+          )}
+        >
+          <span>{isPositiveTrend ? '↑' : '↓'} {Math.abs(trend.value)}%</span>
+          <span style={{ color: 'var(--color-text-faint)' }}>{trend.label}</span>
+        </div>
+      )}
     </motion.div>
   )
 }
