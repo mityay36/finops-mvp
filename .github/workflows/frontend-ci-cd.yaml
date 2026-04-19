@@ -1,0 +1,155 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "frontend/**"
+
+env:
+  IMAGE: cr.yandex/${{ secrets.YCR_REGISTRY_ID }}/finops-frontend
+
+jobs:
+  # CI: TypeScript type check
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  # CD: сборка и пуш образа
+  build-push:
+    name: Build & Push Frontend Image
+    runs-on: ubuntu-latest
+    needs: typecheck
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Yandex Container Registry
+        run: |
+          echo '${{ secrets.YCR_SA_KEY }}' | docker login cr.yandex \
+            --username json_key --password-stdin
+
+      - name: Set image tag
+        id: tag
+        run: echo "sha=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # GitOps: обновляем тег образа в манифесте
+  update-manifest:
+    name: Update Image Tag in Manifest
+    runs-on: ubuntu-latest
+    needs: build-push
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Bump image tag
+        run: |
+          SHA=${{ needs.build-push.outputs.sha }}
+          sed -i "s|finops-frontend:.*|finops-frontend:${SHA}|g" k8s/frontend/deployment.yaml
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/frontend/deployment.yaml
+
+          git diff --staged --quiet && echo "No changes, skipping" && exit 0
+
+          git commit -m "chore(frontend): bump image to ${SHA}"
+
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && break
+            echo "Push attempt $i failed, retrying..."
+            sleep 3
+          done
+
+  # ArgoCD sync
+  argocd-sync:
+    name: Sync ArgoCD — finops-frontend
+    runs-on: ubuntu-latest
+    needs: update-manifest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_YC }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Install ArgoCD CLI
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/argoproj/argo-cd/releases/latest | jq -r .tag_name)
+          curl -sSL -o /usr/local/bin/argocd \
+            "https://github.com/argoproj/argo-cd/releases/download/${VERSION}/argocd-linux-amd64"
+          chmod +x /usr/local/bin/argocd
+
+      - name: Port-forward ArgoCD
+        run: |
+          kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          echo "ARGOCD_PF_PID=$!" >> $GITHUB_ENV
+          sleep 5
+
+      - name: ArgoCD login
+        run: |
+          argocd login localhost:8080 \
+            --insecure \
+            --username admin \
+            --password "${{ secrets.ARGOCD_PASSWORD }}"
+
+      - name: Sync & wait finops-frontend
+        run: |
+          argocd app sync finops-frontend --timeout 60 || true
+          argocd app wait finops-frontend --health --timeout 300
+          echo "finops-frontend deployed"
+
+      - name: Cleanup port-forward
+        if: always()
+        run: kill $ARGOCD_PF_PID 2>/dev/null || true

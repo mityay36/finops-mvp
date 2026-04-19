@@ -1,16 +1,22 @@
-name: CI — Validate
+name: Infra CI — Validate
 
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "k8s/**"
+      - ".yamllint.yaml"
   push:
     branches: [main]
+    paths:
+      - "k8s/**"
+      - ".yamllint.yaml"
 
 jobs:
-  # Job 1: Scan for secrets
   secrets-scan:
     name: Secrets Scan (Gitleaks)
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,23 +27,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Job 2: Lint YAML
   lint-yaml:
-    name: Lint YAML
+    name: Lint YAML (yamllint)
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
 
-      - name: yamllint
+      - name: yamllint k8s/
         uses: ibiqlik/action-yamllint@v3
         with:
           file_or_dir: k8s/
           config_file: .yamllint.yaml
 
-  # Job 3: Validate K8s manifests
   validate-manifests:
     name: Validate K8s Manifests (kubeconform)
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
 
@@ -46,7 +52,7 @@ jobs:
           curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
             | tar xz && sudo mv kubeconform /usr/local/bin/
 
-      - name: Validate manifests
+      - name: Validate plain manifests
         run: |
           kubeconform \
             -strict \
@@ -56,40 +62,10 @@ jobs:
             -summary \
             $(find k8s/manifests k8s/dashboards -name "*.yaml" 2>/dev/null | tr '\n' ' ')
 
-  # Job 4: Validate Helm values
-  validate-helm:
-    name: Validate Helm Values
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-
-      - name: Pull and validate vmks chart
-        run: |
-          helm pull oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-k8s-stack \
-            --version 0.72.6 --untar --untardir /tmp/charts
-          helm template vmks /tmp/charts/victoria-metrics-k8s-stack \
-            --namespace vmks \
-            --values k8s/vmks/values.yaml \
-            --dry-run > /dev/null
-          echo "Vmks values valid"
-
-      - name: Pull and validate opencost chart
-        run: |
-          helm pull oci://ghcr.io/opencost/charts/opencost \
-            --version 2.5.10 --untar --untardir /tmp/charts
-          helm template opencost /tmp/charts/opencost \
-            --namespace opencost \
-            --values k8s/opencost/values.yaml \
-            --dry-run > /dev/null
-          echo "Opencost values valid"
-
-  # Job 5: Validate ArgoCD Applications
   validate-argocd-apps:
-    name: Validate ArgoCD Apps
+    name: Validate ArgoCD Application manifests
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - uses: actions/checkout@v4
 
@@ -98,7 +74,7 @@ jobs:
           curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
             | tar xz && sudo mv kubeconform /usr/local/bin/
 
-      - name: Validate ArgoCD Application manifests
+      - name: Validate ArgoCD apps
         run: |
           kubeconform \
             -strict \
@@ -106,3 +82,33 @@ jobs:
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             -summary \
             k8s/apps/*.yaml
+
+  validate-helm:
+    name: Validate Helm Values (dry-run)
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Validate vmks values
+        run: |
+          helm pull oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-k8s-stack \
+            --version 0.72.6 --untar --untardir /tmp/charts
+          helm template vmks /tmp/charts/victoria-metrics-k8s-stack \
+            --namespace vmks \
+            --values k8s/vmks/values.yaml \
+            --dry-run > /dev/null
+          echo "vmks values valid"
+
+      - name: Validate opencost values
+        run: |
+          helm pull oci://ghcr.io/opencost/charts/opencost \
+            --version 2.5.10 --untar --untardir /tmp/charts
+          helm template opencost /tmp/charts/opencost \
+            --namespace opencost \
+            --values k8s/opencost/values.yaml \
+            --dry-run > /dev/null
+          echo "opencost values valid"
