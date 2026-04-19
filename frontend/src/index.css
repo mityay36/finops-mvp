@@ -132,7 +132,7 @@
     line-height: 1.55;
     font-family: var(--font-body);
     /* BASE font-size = 14px — идеально для mono dashboard */
-    font-size: 14px;
+    font-size: 15px;
     color: var(--color-text);
     background-color: var(--color-bg);
     transition: background-color var(--transition-slow), color var(--transition-slow);
@@ -220,7 +220,7 @@
 
 /* ── KPI value size ─────────────────────────────────────────────────────── */
 .kpi-value {
-  font-size: clamp(18px, 2vw, 24px);
+  font-size: clamp(20px, 2.2vw, 26px);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1;
@@ -228,7 +228,15 @@
 
 /* ── Page heading ───────────────────────────────────────────────────────── */
 .page-title {
-  font-size: clamp(18px, 2vw, 22px);
+  font-size: clamp(18px, 2.2vw, 22px);
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+
+/* ── NavLink: убрать подчёркивание ─────────────────────────────────────── */
+a {
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: none;
 }

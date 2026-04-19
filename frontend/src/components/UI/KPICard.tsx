@@ -88,7 +88,7 @@ export function KPICard({
       <div className="flex items-center gap-2.5 mb-3">
         <div
           className="rounded-md flex-shrink-0 flex items-center justify-center"
-          style={{ width: 32, height: 32, background: iconBg }}
+          style={{ width: 38, height: 38, background: iconBg }}
         >
           {icon}
         </div>

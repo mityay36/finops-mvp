@@ -10,7 +10,6 @@ import { KPICard } from '../components/UI/KPICard'
 import { formatCurrency } from '../lib/utils'
 
 interface BillingProps { window: string; refreshKey: number }
-
 type BillingTab = 'chart' | 'list'
 
 interface ResourceItem {
@@ -27,38 +26,46 @@ function ResourceRow({ r, max, index }: { r: ResourceItem; max: number; index: n
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ delay: index * 0.025 }}
-      className="px-4 py-3 border-b last:border-0"
+      transition={{ delay: index * 0.02 }}
+      className="px-5 py-3.5 border-b last:border-0 hover:bg-[var(--color-surface-offset)] transition-colors"
       style={{ borderColor: 'rgba(28,20,10,0.06)' }}
     >
-      <div className="flex items-baseline justify-between gap-3 mb-1.5">
-        <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium truncate block" style={{ color: 'var(--color-text)' }}>
-            {r.resource_name}
-          </span>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs" style={{ color: 'var(--color-text-faint)' }}>
-              {r.service_name}
-            </span>
-            {r.is_preemptible && (
-              <span
-                className="text-xs px-1.5 py-px rounded-sm font-medium"
-                style={{
-                  background: 'var(--color-success-highlight)',
-                  color: 'var(--color-success)',
-                  fontSize: '11px',
-                }}
-              >
-                spot
-              </span>
-            )}
-          </div>
-        </div>
-        <span className="font-semibold tabular text-sm flex-shrink-0" style={{ color: 'var(--color-text)' }}>
+      {/* Имя ресурса + цена */}
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <p
+          className="font-medium leading-snug"
+          style={{ fontSize: '14px', color: 'var(--color-text)' }}
+        >
+          {r.resource_name}
+        </p>
+        <span
+          className="font-semibold tabular flex-shrink-0"
+          style={{ fontSize: '14px', color: 'var(--color-text)' }}
+        >
           {formatCurrency(r.cost)}
         </span>
       </div>
-      {/* Mini progress bar */}
+
+      {/* Сервис + spot badge — с явным gap */}
+      <div className="flex items-center gap-3 mb-2">
+        <span style={{ fontSize: '12px', color: 'var(--color-text-faint)' }}>
+          {r.service_name}
+        </span>
+        {r.is_preemptible && (
+          <span
+            className="px-2 py-0.5 rounded font-medium"
+            style={{
+              background: 'var(--color-success-highlight)',
+              color: 'var(--color-success)',
+              fontSize: '11px',
+            }}
+          >
+            spot
+          </span>
+        )}
+      </div>
+
+      {/* Progress bar */}
       <div
         className="h-1 rounded-full overflow-hidden"
         style={{ background: 'var(--color-surface-offset)' }}
@@ -68,7 +75,7 @@ function ResourceRow({ r, max, index }: { r: ResourceItem; max: number; index: n
           style={{ background: 'var(--color-primary)' }}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ delay: index * 0.025 + 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ delay: index * 0.02 + 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         />
       </div>
     </motion.div>
@@ -87,7 +94,7 @@ export function Billing({ window: w, refreshKey }: BillingProps) {
     ? Object.entries(data.by_service).map(([name, cost]) => ({ name, cost }))
     : []
 
-  const maxCost = data?.top_resources.length
+  const maxCost = data?.top_resources?.length
     ? Math.max(...data.top_resources.map((r: ResourceItem) => r.cost))
     : 0
 
@@ -98,12 +105,12 @@ export function Billing({ window: w, refreshKey }: BillingProps) {
       {/* Header */}
       <div>
         <h1 className="page-title" style={{ color: 'var(--color-text)' }}>Биллинг YC</h1>
-        <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="mt-1" style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
           Фактические расходы из Yandex Cloud Billing за последние {days} дней
         </p>
       </div>
 
-      {/* KPI cards row */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3">
         <KPICard
           label="Итого по YC"
@@ -112,7 +119,7 @@ export function Billing({ window: w, refreshKey }: BillingProps) {
           prefix="₽ "
           animateValue={!!data}
           subtitle={`за ${days} дней`}
-          icon={<Receipt size={16} strokeWidth={1.8} style={{ color: 'var(--color-accent)' }} />}
+          icon={<Receipt size={20} strokeWidth={1.8} style={{ color: 'var(--color-accent)' }} />}
           iconBg="var(--color-accent-highlight)"
           loading={loading}
         />
@@ -122,7 +129,7 @@ export function Billing({ window: w, refreshKey }: BillingProps) {
           subtitle={data?.has_preemptible_nodes ? 'скидка до 80%' : 'рекомендуем перейти'}
           icon={
             <Zap
-              size={16}
+              size={20}
               strokeWidth={1.8}
               style={{ color: data?.has_preemptible_nodes ? 'var(--color-success)' : 'var(--color-warning)' }}
             />
@@ -136,120 +143,115 @@ export function Billing({ window: w, refreshKey }: BillingProps) {
         />
       </div>
 
-      {/* Main content: services + resources */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-
-        {/* По сервисам — 2/5 */}
-        <div
-          className="xl:col-span-2 rounded-lg border overflow-hidden"
-          style={{
-            background: 'var(--color-surface)',
-            borderColor: 'rgba(28,20,10,0.09)',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          <div
-            className="px-4 py-3 border-b"
-            style={{ borderColor: 'rgba(28,20,10,0.07)' }}
-          >
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              По сервисам
-            </h2>
-          </div>
-          <div className="p-4">
-            <ServiceCostChart data={serviceData} loading={loading} />
-          </div>
+      {/* По сервисам */}
+      <div
+        className="rounded-lg border"
+        style={{
+          background: 'var(--color-surface)',
+          borderColor: 'rgba(28,20,10,0.09)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div className="px-5 py-3.5 border-b" style={{ borderColor: 'rgba(28,20,10,0.07)' }}>
+          <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--color-text)' }}>
+            По сервисам
+          </h2>
         </div>
+        <div className="p-4">
+          <ServiceCostChart data={serviceData} loading={loading} />
+        </div>
+      </div>
 
-        {/* Топ ресурсов — 3/5 */}
+      {/* Топ ресурсов — без maxHeight, растягивается на всю страницу */}
+      <div
+        className="rounded-lg border"
+        style={{
+          background: 'var(--color-surface)',
+          borderColor: 'rgba(28,20,10,0.09)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        {/* Заголовок + переключатель */}
         <div
-          className="xl:col-span-3 rounded-lg border overflow-hidden flex flex-col"
-          style={{
-            background: 'var(--color-surface)',
-            borderColor: 'rgba(28,20,10,0.09)',
-            boxShadow: 'var(--shadow-sm)',
-          }}
+          className="px-5 py-3.5 border-b flex items-center justify-between gap-3"
+          style={{ borderColor: 'rgba(28,20,10,0.07)' }}
         >
-          {/* Заголовок + переключатель вид */}
-          <div
-            className="px-4 py-3 border-b flex items-center justify-between gap-3"
-            style={{ borderColor: 'rgba(28,20,10,0.07)' }}
-          >
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-              Топ ресурсов
-              {data && (
-                <span
-                  className="ml-2 text-xs font-normal"
-                  style={{ color: 'var(--color-text-faint)' }}
-                >
-                  ({data.top_resources.length})
-                </span>
-              )}
-            </h2>
-            {/* Tab toggle: list / chart */}
-            <div
-              className="flex items-center rounded-md p-0.5 gap-0.5"
-              style={{ background: 'var(--color-surface-offset)' }}
-            >
-              {([
-                { key: 'list' as BillingTab, icon: <List size={13} /> },
-                { key: 'chart' as BillingTab, icon: <BarChart2 size={13} /> },
-              ] as { key: BillingTab; icon: React.ReactNode }[]).map(({ key, icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className="px-2.5 py-1.5 rounded-sm transition-all"
-                  style={{
-                    background: activeTab === key ? 'var(--color-surface-2)' : 'transparent',
-                    color: activeTab === key ? 'var(--color-text)' : 'var(--color-text-faint)',
-                    boxShadow: activeTab === key ? 'var(--shadow-sm)' : 'none',
-                  }}
-                  aria-label={key}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Контент */}
-          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 340 }}>
-            {loading ? (
-              <div className="divide-y" style={{ borderColor: 'rgba(28,20,10,0.06)' }}>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="px-4 py-3 space-y-2">
-                    <div className="flex justify-between gap-3">
-                      <div className="skeleton h-3.5 rounded" style={{ width: '55%' }} />
-                      <div className="skeleton h-3.5 rounded" style={{ width: '18%' }} />
-                    </div>
-                    <div className="skeleton h-2.5 rounded" style={{ width: '35%' }} />
-                    <div className="skeleton h-1 rounded-full" style={{ width: '70%' }} />
-                  </div>
-                ))}
-              </div>
-            ) : data?.top_resources.length === 0 ? (
-              <EmptyState
-                icon={<Receipt size={24} />}
-                title="Нет данных"
-                description="Billing данные пока не поступали."
-              />
-            ) : activeTab === 'list' ? (
-              data?.top_resources.map((r: ResourceItem, i: number) => (
-                <ResourceRow key={i} r={r} max={maxCost} index={i} />
-              ))
-            ) : (
-              <div className="p-4">
-                <ServiceCostChart
-                  data={data?.top_resources.slice(0, 12).map((r: ResourceItem) => ({
-                    name: r.resource_name.split('/').pop() ?? r.resource_name,
-                    cost: r.cost,
-                  })) ?? []}
-                  loading={false}
-                />
-              </div>
+          <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--color-text)' }}>
+            Топ ресурсов
+            {data && (
+              <span className="ml-2 font-normal" style={{ fontSize: '13px', color: 'var(--color-text-faint)' }}>
+                ({data.top_resources.length})
+              </span>
             )}
+          </h2>
+
+          {/* Tab toggle */}
+          <div
+            className="flex items-center rounded-md p-0.5 gap-0.5"
+            style={{ background: 'var(--color-surface-offset)' }}
+          >
+            {([
+              { key: 'list' as BillingTab, icon: <List size={14} /> },
+              { key: 'chart' as BillingTab, icon: <BarChart2 size={14} /> },
+            ] as { key: BillingTab; icon: React.ReactNode }[]).map(({ key, icon }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className="px-2.5 py-1.5 rounded-sm transition-all"
+                style={{
+                  background: activeTab === key ? 'var(--color-surface-2)' : 'transparent',
+                  color: activeTab === key ? 'var(--color-text)' : 'var(--color-text-faint)',
+                  boxShadow: activeTab === key ? 'var(--shadow-sm)' : 'none',
+                }}
+                aria-label={key}
+              >
+                {icon}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* Контент — полная высота, НЕТ maxHeight */}
+        {loading ? (
+          <div>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="px-5 py-4 border-b last:border-0 space-y-2"
+                   style={{ borderColor: 'rgba(28,20,10,0.06)' }}>
+                <div className="flex justify-between gap-3">
+                  <div className="skeleton h-4 rounded" style={{ width: '55%' }} />
+                  <div className="skeleton h-4 rounded" style={{ width: '15%' }} />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="skeleton h-3 rounded" style={{ width: '30%' }} />
+                  <div className="skeleton h-4 rounded-full" style={{ width: '32px' }} />
+                </div>
+                <div className="skeleton h-1 rounded-full" style={{ width: '65%' }} />
+              </div>
+            ))}
+          </div>
+        ) : data?.top_resources.length === 0 ? (
+          <EmptyState
+            icon={<Receipt size={24} />}
+            title="Нет данных"
+            description="Billing данные пока не поступали."
+          />
+        ) : activeTab === 'list' ? (
+          <>
+            {data?.top_resources.map((r: ResourceItem, i: number) => (
+              <ResourceRow key={i} r={r} max={maxCost} index={i} />
+            ))}
+          </>
+        ) : (
+          <div className="p-4">
+            <ServiceCostChart
+              data={data?.top_resources.slice(0, 12).map((r: ResourceItem) => ({
+                name: r.resource_name.split('/').pop() ?? r.resource_name,
+                cost: r.cost,
+              })) ?? []}
+              loading={false}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

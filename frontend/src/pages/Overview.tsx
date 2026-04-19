@@ -18,8 +18,13 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
     ? Object.entries(billing.data.by_service).map(([name, cost]) => ({ name, cost }))
     : []
 
-  // Общие расходы: если OpenCost не вернул данные — берём из биллинга
-  const totalCost = summary.data?.total_cost ?? billing.data?.total ?? null
+  // Показываем данные только когда ОБА источника загружены.
+  // Приоритет: summary (OpenCost). Если его нет — billing.total
+  const bothLoaded   = !summary.loading && !billing.loading
+  const totalCost    = bothLoaded
+    ? (summary.data?.total_cost ?? billing.data?.total ?? null)
+    : null
+  const totalLoading = summary.loading || billing.loading
 
   return (
     <div className="page-enter space-y-5">
@@ -32,15 +37,15 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
           prefix="₽ "
           animateValue={totalCost !== null}
           subtitle="фактически за период"
-          icon={<DollarSign size={16} strokeWidth={1.8} style={{ color: 'var(--color-primary)' }} />}
+          icon={<DollarSign size={20} strokeWidth={1.8} style={{ color: 'var(--color-primary)' }} />}
           iconBg="var(--color-primary-subtle)"
-          loading={summary.loading && billing.loading}
+          loading={totalLoading}
         />
         <KPICard
           label="Неймспейсов"
           value={summary.data?.namespace_count ?? '—'}
           subtitle="активных"
-          icon={<Layers size={16} strokeWidth={1.8} style={{ color: 'var(--color-accent)' }} />}
+          icon={<Layers size={20} strokeWidth={1.8} style={{ color: 'var(--color-accent)' }} />}
           iconBg="var(--color-accent-highlight)"
           loading={summary.loading}
         />
@@ -51,7 +56,7 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
           prefix="₽ "
           animateValue={!!recs.data}
           subtitle="в месяц"
-          icon={<TrendingDown size={16} strokeWidth={1.8} style={{ color: 'var(--color-success)' }} />}
+          icon={<TrendingDown size={20} strokeWidth={1.8} style={{ color: 'var(--color-success)' }} />}
           iconBg="var(--color-success-highlight)"
           loading={recs.loading}
         />
@@ -59,15 +64,14 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
           label="Рекомендации"
           value={recs.data?.count ?? '—'}
           subtitle="активных"
-          icon={<Lightbulb size={16} strokeWidth={1.8} style={{ color: 'var(--color-warning)' }} />}
+          icon={<Lightbulb size={20} strokeWidth={1.8} style={{ color: 'var(--color-warning)' }} />}
           iconBg="var(--color-warning-highlight)"
           loading={recs.loading}
         />
       </div>
 
-      {/* Charts row */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Namespace cost */}
         <div
           className="rounded-lg border"
           style={{
@@ -77,10 +81,10 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
           }}
         >
           <div className="px-5 pt-4 pb-2">
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--color-text)' }}>
               Топ неймспейсов по затратам
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-faint)' }}>
+            <p className="mt-0.5" style={{ fontSize: '12px', color: 'var(--color-text-faint)' }}>
               Распределение расходов OpenCost
             </p>
           </div>
@@ -89,12 +93,7 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
               ? <ErrorState message={summary.error} onRetry={summary.refetch} />
               : (
                 <NamespaceCostChart
-                  data={
-                    summary.data?.top_namespaces.map(n => ({
-                      name: n.namespace,
-                      total_cost: n.cost,
-                    })) ?? []
-                  }
+                  data={summary.data?.top_namespaces.map(n => ({ name: n.namespace, total_cost: n.cost })) ?? []}
                   loading={summary.loading}
                 />
               )
@@ -102,7 +101,6 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
           </div>
         </div>
 
-        {/* YC billing */}
         <div
           className="rounded-lg border"
           style={{
@@ -112,10 +110,10 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
           }}
         >
           <div className="px-5 pt-4 pb-2">
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+            <h2 className="font-semibold" style={{ fontSize: '15px', color: 'var(--color-text)' }}>
               Фактические расходы YC
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-faint)' }}>
+            <p className="mt-0.5" style={{ fontSize: '12px', color: 'var(--color-text-faint)' }}>
               Топ сервисов из Billing API
             </p>
           </div>
@@ -131,11 +129,12 @@ export function Overview({ window: w, refreshKey }: OverviewProps) {
       {/* Preemptible banner */}
       {billing.data?.has_preemptible_nodes && (
         <div
-          className="flex items-center gap-2 px-4 py-3 rounded-lg border text-sm"
+          className="flex items-center gap-2.5 px-4 py-3 rounded-lg border"
           style={{
             background: 'var(--color-success-highlight)',
             borderColor: 'rgba(58,107,42,0.25)',
             color: 'var(--color-success)',
+            fontSize: '14px',
           }}
         >
           <span className="font-semibold">✓ Preemptible ноды активны</span>
