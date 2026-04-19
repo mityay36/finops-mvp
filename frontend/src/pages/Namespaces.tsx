@@ -77,7 +77,7 @@ export function Namespaces({ window: w, refreshKey }: NamespacesProps) {
                       </td>
                     </tr>
                   )
-                  : data?.items.map((item, i) => (
+                  : data?.items.map((item) => (
                     <tr key={item.name}
                         className="transition-colors hover:bg-[var(--color-surface-offset)] border-b last:border-0"
                         style={{ borderColor: 'oklch(from var(--color-text) l c h / 0.05)' }}>
