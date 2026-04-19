@@ -17,6 +17,7 @@ __pycache__/
 .venv/
 
 node_modules/
+package-lock.json
 .env
 .env.local
 api/.env

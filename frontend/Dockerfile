@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Stage 1: Build (работает на ARM и AMD64)
-FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:22-alpine3.22 AS builder
 WORKDIR /app
 COPY package.json .
 RUN npm install
