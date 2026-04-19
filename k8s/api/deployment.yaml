@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: cr.yandex/crppm2p2j5q3tmf17su4/finops-api:b9b3ab8
+          image: cr.yandex/crppm2p2j5q3tmf17su4/finops-api:fc7df96
           ports:
             - containerPort: 8000
           envFrom:
