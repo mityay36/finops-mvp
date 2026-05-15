@@ -1,27 +1,50 @@
-version: '3.9'
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finops-postgres
+    environment:
+      POSTGRES_USER: finops
+      POSTGRES_PASSWORD: finops
+      POSTGRES_DB: finops
+    ports:
+      - "5432:5432"
+    volumes:
+      - finops_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finops -d finops"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: finops-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - finops_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api:
-    build:
-      context: ./api
-      # ARM Mac: образ собирается нативно для local dev
-      # Для деплоя в кластер используй: docker buildx build --platform linux/amd64
+    build: ./api
+    container_name: finops-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://finops:finops@postgres:5432/finops
+      REDIS_URL: redis://redis:6379/0
+      FERNET_KEY: ${FERNET_KEY}
+      ENV: development
     ports:
       - "8000:8000"
-    environment:
-      - OPENCOST_URL=http://host.docker.internal:9003  # port-forward opencost
-      - VM_URL=http://host.docker.internal:8428        # port-forward victoria-metrics
-      - YC_ACCESS_KEY=${YC_ACCESS_KEY:-}
-      - YC_SECRET_KEY=${YC_SECRET_KEY:-}
-      - YC_BUCKET=${YC_BUCKET:-finops-billing}
-    volumes:
-      - ./api/app:/app/app:ro  # hot-reload для разработки
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - api
+volumes:
+  finops_pg_data:
+  finops_redis_data:

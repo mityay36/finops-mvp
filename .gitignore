@@ -21,4 +21,7 @@ package-lock.json
 .env
 .env.local
 api/.env
+api/venv
 key.json
+
+.vscode

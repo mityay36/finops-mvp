@@ -1,43 +1,122 @@
-from fastapi import APIRouter, Query
-from app.services.opencost import opencost
+"""HTTP layer for cost allocations read API.
+
+Reads exclusively from cost_snapshots — no live OpenCost calls happen here.
+Live debugging endpoint (pass-through to OpenCost) lives separately at
+/allocations/live and is intended for ops, not for the dashboard.
+"""
+
+from datetime import date
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.repositories.cost_snapshot import GroupByDim
+from app.schemas.allocations import (
+    AllocationsAggregatedResponse,
+    AllocationsTimeseriesResponse,
+    AllocationsTotalsResponse,
+)
+from app.services.allocations_query_service import (
+    AllocationsQueryService,
+    InvalidPeriodError,
+    resolve_period,
+)
+from app.services.cluster_service import ClusterNotFoundError, ClusterService
 
 router = APIRouter()
 
-@router.get("/allocations")
-async def get_allocations(
-    window: str = Query("30d", description="e.g. 24h, 7d, 30d"),
-    aggregate: str = Query("namespace", description="namespace | label:team | pod"),
-):
-    data = await opencost.get_allocations(window=window, aggregate=aggregate)
-    return {
-        "window": window,
-        "aggregate": aggregate,
-        "count": len(data),
-        "items": [
-            {
-                "name": k,
-                "cpu_cost": round(v.get("cpuCost", 0), 4),
-                "ram_cost": round(v.get("ramCost", 0), 4),
-                "pv_cost": round(v.get("pvCost", 0), 4),
-                "network_cost": round(v.get("networkCost", 0), 4),
-                "total_cost": round(v.get("totalCost", 0), 4),
-            }
-            for k, v in sorted(data.items(), key=lambda x: x[1].get("totalCost", 0), reverse=True)
-        ],
-    }
 
-@router.get("/allocations/team/{team}")
-async def get_team_costs(team: str, window: str = Query("30d")):
-    data = await opencost.get_allocations_by_label("team", window=window)
-    item = data.get(team, {})
-    return {
-        "team": team,
-        "window": window,
-        "cpu_cost": round(item.get("cpuCost", 0), 4),
-        "ram_cost": round(item.get("ramCost", 0), 4),
-        "total_cost": round(item.get("totalCost", 0), 4),
-    }
+def _cluster_service(session: AsyncSession = Depends(get_db)) -> ClusterService:
+    return ClusterService(session)
 
-@router.get("/summary")
-async def get_summary(window: str = Query("30d")):
-    return await opencost.get_summary(window=window)
+
+def _query_service(
+    session: AsyncSession = Depends(get_db),
+) -> AllocationsQueryService:
+    return AllocationsQueryService(session)
+
+
+async def _ensure_cluster(cs: ClusterService, cluster_id: UUID) -> None:
+    try:
+        await cs.get_cluster(cluster_id)
+    except ClusterNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+def _resolve_period_or_422(date_from: date | None, date_to: date | None):
+    try:
+        return resolve_period(date_from=date_from, date_to=date_to)
+    except InvalidPeriodError as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+
+
+@router.get(
+    "/clusters/{cluster_id}/allocations/totals",
+    response_model=AllocationsTotalsResponse,
+)
+async def get_allocations_totals(
+    cluster_id: UUID,
+    date_from: date | None = Query(None, alias="from"),
+    date_to: date | None = Query(None, alias="to"),
+    cs: ClusterService = Depends(_cluster_service),
+    qs: AllocationsQueryService = Depends(_query_service),
+) -> AllocationsTotalsResponse:
+    await _ensure_cluster(cs, cluster_id)
+    period = _resolve_period_or_422(date_from, date_to)
+    return await qs.totals(cluster_id, period=period)
+
+
+@router.get(
+    "/clusters/{cluster_id}/allocations",
+    response_model=AllocationsAggregatedResponse,
+)
+async def get_allocations_aggregated(
+    cluster_id: UUID,
+    date_from: date | None = Query(None, alias="from"),
+    date_to: date | None = Query(None, alias="to"),
+    group_by: GroupByDim = Query("namespace"),
+    top: int | None = Query(None, ge=1, le=200),
+    cs: ClusterService = Depends(_cluster_service),
+    qs: AllocationsQueryService = Depends(_query_service),
+) -> AllocationsAggregatedResponse:
+    await _ensure_cluster(cs, cluster_id)
+    period = _resolve_period_or_422(date_from, date_to)
+    return await qs.aggregated(
+        cluster_id, period=period, group_by=group_by, top=top
+    )
+
+
+@router.get(
+    "/clusters/{cluster_id}/allocations/timeseries",
+    response_model=AllocationsTimeseriesResponse,
+)
+async def get_allocations_timeseries(
+    cluster_id: UUID,
+    date_from: date | None = Query(None, alias="from"),
+    date_to: date | None = Query(None, alias="to"),
+    group_by: GroupByDim | None = Query(
+        None,
+        description="If set, returns daily breakdown by this dimension. "
+                    "Otherwise returns a single cluster-wide series.",
+    ),
+    top: int | None = Query(
+        5,
+        ge=1,
+        le=20,
+        description="Top-N keys to include when group_by is set. Ignored otherwise.",
+    ),
+    cs: ClusterService = Depends(_cluster_service),
+    qs: AllocationsQueryService = Depends(_query_service),
+) -> AllocationsTimeseriesResponse:
+    await _ensure_cluster(cs, cluster_id)
+    period = _resolve_period_or_422(date_from, date_to)
+    return await qs.timeseries(
+        cluster_id,
+        period=period,
+        group_by=group_by,
+        top=top if group_by else None,
+    )

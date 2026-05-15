@@ -1,10 +1,26 @@
 fastapi==0.115.0
-uvicorn[standard]==0.30.6
-httpx==0.27.2
+uvicorn[standard]==0.32.0
 pydantic==2.9.2
-pydantic-settings==2.5.2
-boto3==1.35.36
-pandas==2.2.3
-python-dateutil==2.9.0
-prometheus-client==0.21.0
+pydantic-settings==2.6.0
 
+# DB
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.13.3
+
+# Cache
+redis==5.2.0
+
+# Crypto
+cryptography==43.0.3
+
+# Scheduler
+apscheduler==3.10.4
+
+# HTTP
+httpx==0.27.2
+
+# AWS-compatible (для YC S3)
+# boto3==1.35.50
+aioboto3==13.2.0
+botocore==1.35.36
