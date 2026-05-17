@@ -8,7 +8,13 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from app.models.sync_run import BillingSyncRun
+from app.models.tco import OnPremTCOConfig
+from app.models.snapshot import CostSnapshot
+from app.models.billing import BillingRecord
 from app.models.base import Base, TimestampMixin
+from app.models import ProviderCredential
+
 
 
 if TYPE_CHECKING:
