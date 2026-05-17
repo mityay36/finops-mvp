@@ -3,7 +3,7 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.core.config import settings
-from app.jobs import allocations_snapshot, billing_sync   # ← добавлен allocations_snapshot
+from app.jobs import allocations_snapshot, billing_sync, recommendations
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,19 @@ def start_scheduler() -> None:
         coalesce=True,
         next_run_time=None,
         jitter=60,  # spread retry-storms if multiple instances ever exist
+    )
+
+    scheduler.add_job(
+        recommendations.evaluate_recommendations_for_all_active_clusters,
+        trigger="cron",
+        # 5 минут после snapshot job
+        hour=0,
+        minute=5,
+        id="evaluate_recommendations_for_all_active_clusters",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=3600,
     )
 
     scheduler.start()

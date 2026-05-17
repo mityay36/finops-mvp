@@ -72,6 +72,39 @@ class CostSnapshot(Base):
     cpu_efficiency: Mapped[float | None] = mapped_column(Float, nullable=True)
     ram_efficiency: Mapped[float | None] = mapped_column(Float, nullable=True)
 
+    # ── Absolute usage/request quantities (added in migration 0007) ──────
+    # Stored alongside the ratio-based cpu_efficiency/ram_efficiency for
+    # use by the recommendation engine. Bytes — not gibibytes — to avoid
+    # precision loss; conversion to human units happens in the API layer.
+    #
+    # Semantics:
+    #   *_requested = average requested resource during the bucket
+    #   *_used      = average actual usage during the bucket
+    #   *_hours     = integral of (resource * hours alive) over the bucket;
+    #                 useful for unit-cost computation: cost / hours.
+    #
+    # All NOT NULL DEFAULT 0. Rows older than migration 0007 carry zeros —
+    # the engine treats requested == 0 as "no data, skip".
+
+    cpu_cores_requested: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    ram_bytes_requested: Mapped[Decimal] = mapped_column(
+        Numeric(18, 0), nullable=False, default=Decimal(0)
+    )
+    cpu_cores_used: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    ram_bytes_used: Mapped[Decimal] = mapped_column(
+        Numeric(18, 0), nullable=False, default=Decimal(0)
+    )
+    cpu_core_hours: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    ram_byte_hours: Mapped[Decimal] = mapped_column(
+        Numeric(28, 0), nullable=False, default=Decimal(0)
+    )
+
     captured_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

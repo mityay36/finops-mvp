@@ -9,7 +9,7 @@ from app.core.cache import close_redis
 from app.core.config import settings
 from app.core.database import dispose_engine
 from app.core.scheduler import shutdown_scheduler, start_scheduler
-from app.routers import allocations, billing, clusters, providers, sync
+from app.routers import allocations, billing, clusters, providers, sync, recommendations
 from app.services.factory import service_factory
 
 
@@ -51,6 +51,7 @@ app.include_router(clusters.router, prefix="/api/v1", tags=["Clusters"])
 app.include_router(sync.router, prefix="/api/v1", tags=["Sync"])
 app.include_router(billing.router, prefix="/api/v1", tags=["Billing"])
 app.include_router(allocations.router, prefix="/api/v1", tags=["Allocations"])
+app.include_router(recommendations.router, prefix="/api/v1", tags=["Recommendations"])
 
 
 @app.get("/health")

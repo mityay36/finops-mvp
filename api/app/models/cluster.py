@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -9,6 +10,9 @@ from sqlalchemy.sql import func
 
 from app.models.base import Base, TimestampMixin
 
+
+if TYPE_CHECKING:
+    from app.models.recommendation import Recommendation
 
 class ProviderType(str, enum.Enum):
     YC = "yc"
@@ -61,9 +65,10 @@ class ClusterProfile(TimestampMixin, Base):
         passive_deletes=True,
     )
     recommendations: Mapped[list["Recommendation"]] = relationship(
+        "Recommendation",
         back_populates="cluster",
         cascade="all, delete-orphan",
-        passive_deletes=True,
+        lazy="raise",
     )
     tco_config: Mapped["OnPremTCOConfig | None"] = relationship(
         back_populates="cluster",

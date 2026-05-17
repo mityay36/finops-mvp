@@ -2,7 +2,7 @@ from app.models.base import Base
 from app.models.cluster import ClusterProfile, ProviderType
 from app.models.credential import ProviderCredential
 from app.models.billing import BillingRecord
-from app.models.recommendation import Recommendation, RecommendationRisk, RecommendationStatus, RecommendationType
+from app.models.recommendation import Recommendation, RecommendationSeverity, RecommendationStatus, RecommendationTargetKind
 from app.models.tco import OnPremTCOConfig
 from app.models.sync_run import BillingSyncRun, SyncRunStatus
 from app.models.allocations_snapshot_run import (
@@ -19,9 +19,9 @@ __all__ = [
     "ProviderCredential",
     "BillingRecord",
     "Recommendation",
-    "RecommendationRisk",
     "RecommendationStatus",
-    "RecommendationType",
+    "RecommendationSeverity",
+    "RecommendationTargetKind",
     "OnPremTCOConfig",
     "BillingSyncRun",
     "SyncRunStatus",
