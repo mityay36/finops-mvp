@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: finops-postgres
+  namespace: argocd
+  labels:
+    team: platform
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mityay36/finops-mvp
+    targetRevision: main
+    path: k8s/postgres
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: finops
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
