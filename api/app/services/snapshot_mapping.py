@@ -14,7 +14,7 @@ from app.models.snapshot import UNALLOCATED
 
 
 # Per-spec, OpenCost emits allocation names following these patterns depending
-# on the `aggregate` query param. We split safely without raising on edge cases.
+# on the `aggregate` query param. We split safely without raising on edge cases
 def _split_pod_name(raw: str) -> tuple[str, str]:
     """For aggregate=pod, name is 'namespace/podname'."""
     if "/" in raw:
