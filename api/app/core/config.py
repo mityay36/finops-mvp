@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     scheduler_enabled: bool = True
     billing_sync_interval_minutes: int = 60
     allocations_snapshot_interval_minutes: int = 60
-    metrics_snapshot_interval_minutes: int = 15
 
     model_config = SettingsConfigDict(
         env_file=".env",
