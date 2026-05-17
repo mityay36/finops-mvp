@@ -42,7 +42,9 @@ class SyncRunRepository:
         )
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
-    async def get_last_success_for_cluster(self, cluster_id: UUID) -> BillingSyncRun | None:
+    async def get_last_success_for_cluster(
+        self, cluster_id: UUID
+    ) -> BillingSyncRun | None:
         stmt = (
             select(BillingSyncRun)
             .where(BillingSyncRun.cluster_id == cluster_id)
@@ -86,7 +88,9 @@ class SyncRunRepository:
     ) -> BillingSyncRun:
         run.status = SyncRunStatus.FAILED
         run.finished_at = datetime.now(timezone.utc)
-        run.error_message = error_message[:2000]  # column is TEXT but be defensive in logs
+        run.error_message = error_message[
+            :2000
+        ]  # column is TEXT but be defensive in logs
         run.records_imported = records_imported
         await self.session.flush()
         return run

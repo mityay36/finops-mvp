@@ -3,6 +3,7 @@ import httpx
 
 from app.services.clients.base import BaseHTTPClient, ClientError
 
+
 class OpenCostInternalError(Exception):
     """OpenCost responded with HTTP 200 but reported an internal error in body."""
 
@@ -34,7 +35,13 @@ class OpenCostClient(BaseHTTPClient):
     async def get_summary(self, *, window: str = "30d") -> dict[str, float]:
         allocations = await self.get_allocations(window=window, aggregate="cluster")
         if not allocations:
-            return {"cpu_cost": 0.0, "ram_cost": 0.0, "pv_cost": 0.0, "network_cost": 0.0, "total_cost": 0.0}
+            return {
+                "cpu_cost": 0.0,
+                "ram_cost": 0.0,
+                "pv_cost": 0.0,
+                "network_cost": 0.0,
+                "total_cost": 0.0,
+            }
         # With aggregate=cluster there is typically one bucket.
         try:
             bucket = next(iter(allocations.values()))
@@ -51,7 +58,9 @@ class OpenCostClient(BaseHTTPClient):
     async def healthcheck(self) -> bool:
         """Cheap probe used by /clusters/{id}/diagnostics."""
         try:
-            await self._get_json("allocation", params={"window": "1h", "aggregate": "cluster"})
+            await self._get_json(
+                "allocation", params={"window": "1h", "aggregate": "cluster"}
+            )
             return True
         except ClientError:
             return False

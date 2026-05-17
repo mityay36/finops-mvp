@@ -131,7 +131,7 @@ class AllocationsSnapshotService:
         durable — if day 17 fails, days 1..16 are already persisted in the DB
         and a re-run will resume from where we stopped.
         """
-        
+
         PER_DAY_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
         INTER_REQUEST_DELAY = 0.3  # seconds; gentle on VictoriaMetrics
 
@@ -154,7 +154,9 @@ class AllocationsSnapshotService:
             if not days:
                 fresh = await session.get(AllocationsSnapshotRun, run_id)
                 if fresh is not None:
-                    await runs_repo.mark_success(fresh, days_processed=0, rows_upserted=0)
+                    await runs_repo.mark_success(
+                        fresh, days_processed=0, rows_upserted=0
+                    )
                     await session.commit()
                 return
 
@@ -177,14 +179,19 @@ class AllocationsSnapshotService:
                 except OpenCostInternalError as exc:
                     logger.warning(
                         "Snapshot ETL: cluster=%s day=%s OpenCost internal: %s",
-                        cluster_id, day, exc,
+                        cluster_id,
+                        day,
+                        exc,
                     )
                     failed_days.append((day, f"opencost: {exc}"))
                     continue
                 except (httpx.HTTPError, httpx.TimeoutException) as exc:
                     logger.warning(
                         "Snapshot ETL: cluster=%s day=%s transport %s: %s",
-                        cluster_id, day, type(exc).__name__, exc,
+                        cluster_id,
+                        day,
+                        type(exc).__name__,
+                        exc,
                     )
                     failed_days.append((day, f"{type(exc).__name__}: {exc}"))
                     continue
@@ -206,11 +213,17 @@ class AllocationsSnapshotService:
                     days_processed += 1
                     logger.info(
                         "Snapshot ETL: cluster=%s day=%s rows=%d (progress %d/%d)",
-                        cluster_id, day, upserted, idx + 1, len(days),
+                        cluster_id,
+                        day,
+                        upserted,
+                        idx + 1,
+                        len(days),
                     )
                 except Exception as exc:  # noqa: BLE001
                     logger.exception(
-                        "Snapshot ETL: cluster=%s day=%s upsert failed", cluster_id, day,
+                        "Snapshot ETL: cluster=%s day=%s upsert failed",
+                        cluster_id,
+                        day,
                     )
                     await session.rollback()
                     failed_days.append((day, f"upsert: {type(exc).__name__}: {exc}"))
@@ -249,7 +262,11 @@ class AllocationsSnapshotService:
 
             logger.info(
                 "Snapshot ETL: cluster=%s run=%s done. days_ok=%d days_failed=%d total_rows=%d",
-                cluster_id, run_id, days_processed, len(failed_days), total_upserted,
+                cluster_id,
+                run_id,
+                days_processed,
+                len(failed_days),
+                total_upserted,
             )
 
     # ── Internal helpers ────────────────────────────────────────────────

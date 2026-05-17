@@ -25,7 +25,9 @@ class CredentialRepository:
     ) -> list[ProviderCredential]:
         """Drop all existing credentials for the cluster and insert the new set."""
         await self.session.execute(
-            delete(ProviderCredential).where(ProviderCredential.cluster_id == cluster_id)
+            delete(ProviderCredential).where(
+                ProviderCredential.cluster_id == cluster_id
+            )
         )
         items = [
             ProviderCredential(

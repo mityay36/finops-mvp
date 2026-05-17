@@ -97,7 +97,6 @@ class ClusterService:
 
         return cluster
 
-
     async def delete_cluster(self, cluster_id: UUID) -> None:
         cluster = await self.get_cluster(cluster_id)
         await self.clusters.delete(cluster)

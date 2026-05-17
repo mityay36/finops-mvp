@@ -3,7 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     opencost_url: str = "http://opencost.opencost.svc.cluster.local:9003"
-    vm_url: str = "http://vmsingle-vmks-victoria-metrics-k8s-stack.vmks.svc.cluster.local:8428"
+    vm_url: str = (
+        "http://vmsingle-vmks-victoria-metrics-k8s-stack.vmks.svc.cluster.local:8428"
+    )
 
     yc_bucket: str = "finops-billing"
     yc_prefix: str = "billing/"

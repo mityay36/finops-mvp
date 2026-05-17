@@ -85,9 +85,7 @@ async def get_allocations_aggregated(
 ) -> AllocationsAggregatedResponse:
     await _ensure_cluster(cs, cluster_id)
     period = _resolve_period_or_422(date_from, date_to)
-    return await qs.aggregated(
-        cluster_id, period=period, group_by=group_by, top=top
-    )
+    return await qs.aggregated(cluster_id, period=period, group_by=group_by, top=top)
 
 
 @router.get(
@@ -101,7 +99,7 @@ async def get_allocations_timeseries(
     group_by: GroupByDim | None = Query(
         None,
         description="If set, returns daily breakdown by this dimension. "
-                    "Otherwise returns a single cluster-wide series.",
+        "Otherwise returns a single cluster-wide series.",
     ),
     top: int | None = Query(
         5,

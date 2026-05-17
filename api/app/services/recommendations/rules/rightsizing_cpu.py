@@ -101,9 +101,7 @@ class RightsizingCpuRule:
         if cores_delta <= 0:
             return None
 
-        monthly_saving = (
-            cores_delta * ctx.cpu_unit_cost_per_core_hour * _MONTHLY_HOURS
-        )
+        monthly_saving = cores_delta * ctx.cpu_unit_cost_per_core_hour * _MONTHLY_HOURS
 
         if monthly_saving < _MIN_MONTHLY_SAVING_USD:
             return None
@@ -116,9 +114,7 @@ class RightsizingCpuRule:
             "cores_recommended": _q(cores_recommended, 6),
             "cores_delta": _q(cores_delta, 6),
             "safety_margin": str(_SAFETY_MARGIN),
-            "cpu_unit_cost_per_core_hour": _q(
-                ctx.cpu_unit_cost_per_core_hour, 8
-            ),
+            "cpu_unit_cost_per_core_hour": _q(ctx.cpu_unit_cost_per_core_hour, 8),
             "monthly_hours": int(_MONTHLY_HOURS),
             "controller_kind": controller_kind,
             "pods_per_day_avg": _q(

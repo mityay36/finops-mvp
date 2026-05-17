@@ -50,7 +50,9 @@ async def sync_all_active_yc_clusters() -> None:
         except BillingSyncBusyError:
             logger.info("Scheduled billing sync: cluster %s busy, skipping", cluster_id)
         except BillingSyncError as exc:
-            logger.warning("Scheduled billing sync: cluster %s skipped: %s", cluster_id, exc)
+            logger.warning(
+                "Scheduled billing sync: cluster %s skipped: %s", cluster_id, exc
+            )
         except Exception:  # noqa: BLE001
             logger.exception("Scheduled billing sync: cluster %s crashed", cluster_id)
 

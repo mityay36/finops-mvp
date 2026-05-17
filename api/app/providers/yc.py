@@ -18,7 +18,11 @@ from app.providers.dto import BillingRecordDTO
 logger = logging.getLogger(__name__)
 
 
-_NAMESPACE_LABEL_KEYS = ("labels.k8s_namespace", "labels.kubernetes_namespace", "labels.namespace")
+_NAMESPACE_LABEL_KEYS = (
+    "labels.k8s_namespace",
+    "labels.kubernetes_namespace",
+    "labels.namespace",
+)
 _SERVICE_LABEL_KEYS = ("labels.service", "labels.app", "labels.application")
 _PREEMPTIBLE_PATTERN = re.compile(r"preemptible", re.IGNORECASE)
 _DEFAULT_S3_ENDPOINT = "https://storage.yandexcloud.net"
@@ -27,9 +31,7 @@ _DEFAULT_S3_ENDPOINT = "https://storage.yandexcloud.net"
 class YCProvider(BaseProvider):
     PROVIDER_TYPE = ProviderType.YC
     DISPLAY_NAME = "Yandex Cloud"
-    DESCRIPTION = (
-        "Yandex Cloud Managed Kubernetes cluster with billing CSV exports stored in Object Storage."
-    )
+    DESCRIPTION = "Yandex Cloud Managed Kubernetes cluster with billing CSV exports stored in Object Storage."
     REQUIRED_CREDENTIALS = [
         CredentialFieldSpec(
             name="access_key",
@@ -117,21 +119,31 @@ class YCProvider(BaseProvider):
                     if not (key.endswith(".csv") or key.endswith(".csv.gz")):
                         continue
 
-                    logger.debug("YC billing ETL: reading object %s (%s bytes)", key, obj.get("Size"))
+                    logger.debug(
+                        "YC billing ETL: reading object %s (%s bytes)",
+                        key,
+                        obj.get("Size"),
+                    )
                     response = await s3.get_object(Bucket=bucket, Key=key)
-                    body = await response["Body"].read()  # files are small (~MB), full read OK
+                    body = await response[
+                        "Body"
+                    ].read()  # files are small (~MB), full read OK
 
                     try:
                         for dto in self._parse_csv_bytes(body, source_key=key):
                             yield dto
                     except Exception:  # noqa: BLE001
-                        logger.exception("YC billing ETL: failed to parse %s, skipping", key)
+                        logger.exception(
+                            "YC billing ETL: failed to parse %s, skipping", key
+                        )
                         continue
 
     # ── CSV parsing ──────────────────────────────────────────────────────
 
     @classmethod
-    def _parse_csv_bytes(cls, body: bytes, *, source_key: str) -> list[BillingRecordDTO]:
+    def _parse_csv_bytes(
+        cls, body: bytes, *, source_key: str
+    ) -> list[BillingRecordDTO]:
         if source_key.endswith(".gz") or body[:2] == b"\x1f\x8b":
             body = gzip.decompress(body)
         text = body.decode("utf-8-sig")  # YC sometimes emits BOM

@@ -19,6 +19,7 @@ class BillingSyncRunRead(BaseModel):
     records_imported: int
     error_message: str | None = None
 
+
 class AllocationsSnapshotRunRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,4 +38,5 @@ class AllocationsSnapshotRunRead(BaseModel):
 
 class LatestAllocationsSnapshotRun(AllocationsSnapshotRunRead):
     """Same shape — used by /runs/latest for parity with billing API."""
+
     pass

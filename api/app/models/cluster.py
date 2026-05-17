@@ -13,12 +13,12 @@ from app.models.tco import OnPremTCOConfig
 from app.models.snapshot import CostSnapshot
 from app.models.billing import BillingRecord
 from app.models.base import Base, TimestampMixin
-from app.models import ProviderCredential
-
 
 
 if TYPE_CHECKING:
     from app.models.recommendation import Recommendation
+    from app.models import ProviderCredential
+
 
 class ProviderType(str, enum.Enum):
     YC = "yc"
@@ -27,9 +27,7 @@ class ProviderType(str, enum.Enum):
 
 class ClusterProfile(TimestampMixin, Base):
     __tablename__ = "cluster_profiles"
-    __table_args__ = (
-        UniqueConstraint("name", name="uq_cluster_profiles_name"),
-    )
+    __table_args__ = (UniqueConstraint("name", name="uq_cluster_profiles_name"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -47,7 +45,9 @@ class ClusterProfile(TimestampMixin, Base):
     )
     opencost_url: Mapped[str] = mapped_column(String(512), nullable=False)
     vm_url: Mapped[str] = mapped_column(String(512), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

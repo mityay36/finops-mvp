@@ -59,7 +59,9 @@ class BillingSyncService:
                 f"Cluster {cluster.id} already has a running sync (run_id={existing.id})"
             )
 
-        window_start, window_end = await self._compute_window(cluster.id, force_full=force_full)
+        window_start, window_end = await self._compute_window(
+            cluster.id, force_full=force_full
+        )
         return await self.runs.create_running(
             cluster_id=cluster.id,
             window_start=window_start,
@@ -106,12 +108,18 @@ class BillingSyncService:
                 ):
                     buffer.append(dto)
                     if len(buffer) >= INSERT_BATCH_SIZE:
-                        inserted_total += await billing_repo.insert_batch(cluster_id, buffer)
+                        inserted_total += await billing_repo.insert_batch(
+                            cluster_id, buffer
+                        )
                         buffer.clear()
-                        await session.commit()  # commit per batch — observability + memory
+                        await (
+                            session.commit()
+                        )  # commit per batch — observability + memory
 
                 if buffer:
-                    inserted_total += await billing_repo.insert_batch(cluster_id, buffer)
+                    inserted_total += await billing_repo.insert_batch(
+                        cluster_id, buffer
+                    )
                     buffer.clear()
 
                 # Refresh the run object (its session attributes may have detached after commits).

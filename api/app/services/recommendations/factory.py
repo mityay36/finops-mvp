@@ -8,10 +8,10 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.recommendations.engine import RecommendationEngineService
+from app.services.recommendations.types import RuleEvaluator
 from app.services.recommendations.rules.rightsizing_cpu import RightsizingCpuRule
 from app.services.recommendations.rules.oom_risk_ram import OomRiskRamRule
 from app.services.recommendations.rules.idle_workload import IdleWorkloadRule
-
 
 
 def build_engine(
@@ -20,10 +20,10 @@ def build_engine(
     window_days: int = 14,
     min_valid_days: int = 10,
 ) -> RecommendationEngineService:
-    rules = [
+    rules: list[RuleEvaluator] = [
         RightsizingCpuRule(),
         OomRiskRamRule(),
-        IdleWorkloadRule()
+        IdleWorkloadRule(),
     ]
     return RecommendationEngineService(
         session,
@@ -31,4 +31,3 @@ def build_engine(
         window_days=window_days,
         min_valid_days=min_valid_days,
     )
-

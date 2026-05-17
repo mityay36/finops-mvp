@@ -7,7 +7,9 @@ from app.services.clients.base import BaseHTTPClient, ClientError
 class VMClient(BaseHTTPClient):
     """Thin async client for VictoriaMetrics PromQL endpoints."""
 
-    async def query(self, promql: str, *, time: datetime | None = None) -> list[dict[str, Any]]:
+    async def query(
+        self, promql: str, *, time: datetime | None = None
+    ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"query": promql}
         if time is not None:
             params["time"] = int(time.timestamp())

@@ -21,6 +21,8 @@ apscheduler==3.10.4
 httpx==0.27.2
 
 # AWS-compatible (для YC S3)
-# boto3==1.35.50
+botocore==1.35.36
 aioboto3==13.2.0
+aiobotocore==2.15.2
+boto3-stubs==1.43.9
 botocore==1.35.36

@@ -29,7 +29,9 @@ class ServiceFactory:
     async def opencost(self, cluster: ClusterProfile) -> OpenCostClient:
         async with self._lock:
             cached = self._opencost.get(cluster.id)
-            if cached is not None and cached.base_url.rstrip("/") == cluster.opencost_url.rstrip("/"):
+            if cached is not None and cached.base_url.rstrip(
+                "/"
+            ) == cluster.opencost_url.rstrip("/"):
                 return cached
             if cached is not None:
                 # URL changed — close stale client first.
@@ -41,7 +43,9 @@ class ServiceFactory:
     async def vm(self, cluster: ClusterProfile) -> VMClient:
         async with self._lock:
             cached = self._vm.get(cluster.id)
-            if cached is not None and cached.base_url.rstrip("/") == cluster.vm_url.rstrip("/"):
+            if cached is not None and cached.base_url.rstrip(
+                "/"
+            ) == cluster.vm_url.rstrip("/"):
                 return cached
             if cached is not None:
                 await cached.aclose()
@@ -66,7 +70,9 @@ class ServiceFactory:
                 cache.clear()
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
-            logger.info("ServiceFactory: all upstream HTTP clients closed (%d)", len(tasks))
+            logger.info(
+                "ServiceFactory: all upstream HTTP clients closed (%d)", len(tasks)
+            )
 
 
 # Singleton instance — initialized at import time, lifecycle owned by FastAPI lifespan.

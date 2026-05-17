@@ -44,43 +44,40 @@ class RecommendationRepository:
         Does NOT touch closed rows of the same key.
         """
         now = datetime.now(timezone.utc)
-        stmt = (
-            pg_insert(Recommendation.__table__)
-            .values(
-                cluster_id=cluster_id,
-                rule_id=rule_id,
-                target_kind=target_kind,
-                target_namespace=target_namespace,
-                target_controller=target_controller,
-                status=RecommendationStatus.OPEN.value,
-                severity=severity,
-                monthly_saving_usd=monthly_saving_usd,
-                evidence=evidence,
-                first_seen_at=now,
-                last_seen_at=now,
-            )
-            .on_conflict_do_update(
-                index_elements=[
-                    "cluster_id",
-                    "rule_id",
-                    "target_namespace",
-                    "target_controller",
-                ],
-                index_where=text("status = 'open'"),
-                set_={
-                    "severity": pg_insert(Recommendation.__table__).excluded.severity,
-                    "monthly_saving_usd": pg_insert(
-                        Recommendation.__table__
-                    ).excluded.monthly_saving_usd,
-                    "evidence": pg_insert(Recommendation.__table__).excluded.evidence,
-                    "last_seen_at": now,
-                },
-            )
-            .returning(Recommendation.__table__)
+
+        insert_stmt = pg_insert(Recommendation).values(
+            cluster_id=cluster_id,
+            rule_id=rule_id,
+            target_kind=target_kind,
+            target_namespace=target_namespace,
+            target_controller=target_controller,
+            status=RecommendationStatus.OPEN.value,
+            severity=severity,
+            monthly_saving_usd=monthly_saving_usd,
+            evidence=evidence,
+            first_seen_at=now,
+            last_seen_at=now,
         )
+
+        stmt = insert_stmt.on_conflict_do_update(
+            index_elements=[
+                "cluster_id",
+                "rule_id",
+                "target_namespace",
+                "target_controller",
+            ],
+            index_where=text("status = 'open'"),
+            set_={
+                "severity": insert_stmt.excluded.severity,
+                "monthly_saving_usd": insert_stmt.excluded.monthly_saving_usd,
+                "evidence": insert_stmt.excluded.evidence,
+                "last_seen_at": now,
+            },
+        ).returning(Recommendation)
+
         result = await self.session.execute(stmt)
         row = result.mappings().first()
-        # Re-fetch as ORM object so callers can use it transparently.
+        assert row is not None, "RETURNING must yield exactly one row"
         obj = await self.session.get(Recommendation, row["id"])
         assert obj is not None
         return obj
@@ -206,10 +203,14 @@ class RecommendationRepository:
             min_saving_usd=min_saving_usd,
         )
         # Stable ordering: $-impact desc, then id for determinism on ties.
-        stmt = stmt.order_by(
-            Recommendation.monthly_saving_usd.desc(),
-            Recommendation.id.asc(),
-        ).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(
+                Recommendation.monthly_saving_usd.desc(),
+                Recommendation.id.asc(),
+            )
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -223,9 +224,8 @@ class RecommendationRepository:
         namespaces: list[str] | None = None,
         min_saving_usd: Decimal | None = None,
     ) -> int:
-        stmt = (
-            select(func.count(Recommendation.id))
-            .where(Recommendation.cluster_id == cluster_id)
+        stmt = select(func.count(Recommendation.id)).where(
+            Recommendation.cluster_id == cluster_id
         )
         stmt = self._apply_filters(
             stmt,
@@ -238,9 +238,7 @@ class RecommendationRepository:
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 
-    async def get_by_id(
-        self, cluster_id: UUID, rec_id: UUID
-    ) -> Recommendation | None:
+    async def get_by_id(self, cluster_id: UUID, rec_id: UUID) -> Recommendation | None:
         stmt = (
             select(Recommendation)
             .where(Recommendation.cluster_id == cluster_id)
@@ -250,7 +248,9 @@ class RecommendationRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
-    def _apply_filters(stmt, *, statuses, severities, rule_ids, namespaces, min_saving_usd):
+    def _apply_filters(
+        stmt, *, statuses, severities, rule_ids, namespaces, min_saving_usd
+    ):
         if statuses:
             stmt = stmt.where(Recommendation.status.in_(statuses))
         if severities:

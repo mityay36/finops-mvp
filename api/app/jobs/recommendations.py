@@ -56,9 +56,7 @@ async def evaluate_recommendations_for_all_active_clusters() -> None:
             )
             failed += 1
 
-    logger.info(
-        "Recommendation job: done — succeeded=%d failed=%d", succeeded, failed
-    )
+    logger.info("Recommendation job: done — succeeded=%d failed=%d", succeeded, failed)
 
 
 async def _list_active_cluster_ids() -> list[UUID]:

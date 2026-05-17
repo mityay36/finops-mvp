@@ -38,8 +38,12 @@ class AllocationsSnapshotRun(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False)
     trigger: Mapped[str] = mapped_column(Text, nullable=False)
 
-    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    window_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
     days_processed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rows_upserted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

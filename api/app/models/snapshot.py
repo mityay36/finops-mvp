@@ -16,7 +16,11 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship   # ← добавлен relationship
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)  # ← добавлен relationship
 
 from app.models.base import Base
 
@@ -53,21 +57,41 @@ class CostSnapshot(Base):
 
     namespace: Mapped[str] = mapped_column(Text, nullable=False, default=UNALLOCATED)
     controller: Mapped[str] = mapped_column(Text, nullable=False, default=UNALLOCATED)
-    controller_kind: Mapped[str] = mapped_column(Text, nullable=False, default=UNALLOCATED)
+    controller_kind: Mapped[str] = mapped_column(
+        Text, nullable=False, default=UNALLOCATED
+    )
     pod: Mapped[str] = mapped_column(Text, nullable=False, default=UNALLOCATED)
     node: Mapped[str] = mapped_column(Text, nullable=False, default=UNALLOCATED)
 
     minutes: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
-    cpu_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    ram_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    gpu_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    pv_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    network_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    load_balancer_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    shared_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    external_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
-    total_cost: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=Decimal(0))
+    cpu_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    ram_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    gpu_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    pv_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    network_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    load_balancer_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    shared_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    external_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
+    total_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 6), nullable=False, default=Decimal(0)
+    )
 
     cpu_efficiency: Mapped[float | None] = mapped_column(Float, nullable=True)
     ram_efficiency: Mapped[float | None] = mapped_column(Float, nullable=True)

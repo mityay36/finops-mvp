@@ -47,7 +47,9 @@ def _runs_repo(session: AsyncSession = Depends(get_db)) -> SyncRunRepository:
 async def trigger_billing_sync(
     cluster_id: UUID,
     background_tasks: BackgroundTasks,
-    force_full: bool = Query(False, description="Ignore incremental window, fetch full lookback."),
+    force_full: bool = Query(
+        False, description="Ignore incremental window, fetch full lookback."
+    ),
     cluster_service: ClusterService = Depends(_cluster_service),
     sync_service: BillingSyncService = Depends(_sync_service),
 ) -> BillingSyncRunRead:
@@ -65,7 +67,9 @@ async def trigger_billing_sync(
     except BillingSyncBusyError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except BillingSyncError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     background_tasks.add_task(BillingSyncService.execute_run, run.id, cluster_id)
     return BillingSyncRunRead.model_validate(run)
@@ -87,7 +91,9 @@ async def list_billing_sync_runs(
     except ClusterNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-    items, total = await runs_repo.list_for_cluster(cluster_id, limit=limit, offset=offset)
+    items, total = await runs_repo.list_for_cluster(
+        cluster_id, limit=limit, offset=offset
+    )
     return Page[BillingSyncRunRead](
         items=[BillingSyncRunRead.model_validate(r) for r in items],
         total=total,
@@ -136,7 +142,9 @@ async def get_billing_sync_run(
 
     run = await runs_repo.get(run_id)
     if run is None or run.cluster_id != cluster_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Sync run {run_id} not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"Sync run {run_id} not found"
+        )
     return BillingSyncRunRead.model_validate(run)
 
 
@@ -165,7 +173,7 @@ async def trigger_allocations_snapshot(
         ge=1,
         le=60,
         description="If set, run a backfill snapshot covering the last N days. "
-                    "Otherwise an incremental snapshot is performed.",
+        "Otherwise an incremental snapshot is performed.",
     ),
     cluster_service: ClusterService = Depends(_cluster_service),
     snap_service: AllocationsSnapshotService = Depends(_alloc_snapshot_service),
@@ -187,7 +195,9 @@ async def trigger_allocations_snapshot(
     except AllocationsSnapshotBusyError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except AllocationsSnapshotError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
 
     background_tasks.add_task(
         AllocationsSnapshotService.execute_run, run.id, cluster_id

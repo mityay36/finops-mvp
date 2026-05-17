@@ -1,6 +1,7 @@
 import httpx
 from app.config import settings
 
+
 class VictoriaMetricsService:
     def __init__(self):
         self.base_url = settings.vm_url
@@ -14,7 +15,9 @@ class VictoriaMetricsService:
         resp.raise_for_status()
         return resp.json().get("data", {}).get("result", [])
 
-    async def query_range(self, promql: str, start: str, end: str, step: str = "1h") -> list:
+    async def query_range(
+        self, promql: str, start: str, end: str, step: str = "1h"
+    ) -> list:
         resp = await self.client.get(
             f"{self.base_url}/api/v1/query_range",
             params={"query": promql, "start": start, "end": end, "step": step},
@@ -38,18 +41,20 @@ class VictoriaMetricsService:
     async def get_vpa_recommendations(self) -> list[dict]:
         """VPA рекомендации — только recommend mode"""
         results = await self.query(
-            'kube_verticalpodautoscaler_status_recommendation_containerrecommendations_target'
+            "kube_verticalpodautoscaler_status_recommendation_containerrecommendations_target"
             '{resource="cpu"}'
         )
         recs = []
         for r in results:
             m = r["metric"]
-            recs.append({
-                "namespace": m.get("namespace"),
-                "pod": m.get("container"),
-                "resource": m.get("resource"),
-                "recommended_cpu": round(float(r["value"][1]), 4),
-            })
+            recs.append(
+                {
+                    "namespace": m.get("namespace"),
+                    "pod": m.get("container"),
+                    "resource": m.get("resource"),
+                    "recommended_cpu": round(float(r["value"][1]), 4),
+                }
+            )
         return recs
 
     async def get_cpu_rightsizing(self) -> list[dict]:
@@ -97,5 +102,6 @@ class VictoriaMetricsService:
             for r in results
             if r["value"][1] not in ("NaN", "+Inf", "-Inf")
         ]
+
 
 vm = VictoriaMetricsService()

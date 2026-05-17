@@ -34,7 +34,9 @@ from app.schemas.recommendation import (
 from app.models import ClusterProfile
 from app.services.recommendations.api_service import RecommendationApiService
 
-router = APIRouter(prefix="/clusters/{cluster_id}/recommendations", tags=["recommendations"])
+router = APIRouter(
+    prefix="/clusters/{cluster_id}/recommendations", tags=["recommendations"]
+)
 
 
 _LIMIT_DEFAULT = 50
@@ -184,4 +186,5 @@ async def _get_active_cluster(
 async def _evaluate_one_for_endpoint(cluster_id: UUID) -> None:
     """Background task — needs its own session, see job's _evaluate_one."""
     from app.jobs.recommendations import _evaluate_one
+
     await _evaluate_one(cluster_id)

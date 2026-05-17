@@ -110,18 +110,14 @@ def _build_coverage(
     'old edge' case is rare in steady-state operation and would require us
     to track per-row capture timestamps. Future improvement.
     """
-    requested_days = {
-        period.date_from + timedelta(days=i) for i in range(period.days)
-    }
+    requested_days = {period.date_from + timedelta(days=i) for i in range(period.days)}
     have = set(days_with_data)
     missing = sorted(requested_days - have)
 
     today = datetime.now(timezone.utc).date()
     partial: list[date] = [today] if today in have else []
 
-    completeness = (
-        (len(have) / len(requested_days)) if requested_days else 1.0
-    )
+    completeness = (len(have) / len(requested_days)) if requested_days else 1.0
     return CoverageInfo(
         requested_from=period.date_from,
         requested_to=period.date_to,
@@ -138,25 +134,43 @@ def _build_coverage(
 
 def _breakdown_from_totals(t: TotalsRow) -> CostBreakdown:
     return CostBreakdown(
-        cpu=t.cpu_cost, ram=t.ram_cost, gpu=t.gpu_cost, pv=t.pv_cost,
-        network=t.network_cost, load_balancer=t.load_balancer_cost,
-        shared=t.shared_cost, external=t.external_cost, total=t.total_cost,
+        cpu=t.cpu_cost,
+        ram=t.ram_cost,
+        gpu=t.gpu_cost,
+        pv=t.pv_cost,
+        network=t.network_cost,
+        load_balancer=t.load_balancer_cost,
+        shared=t.shared_cost,
+        external=t.external_cost,
+        total=t.total_cost,
     )
 
 
 def _breakdown_from_aggregated(r: AggregatedRow) -> CostBreakdown:
     return CostBreakdown(
-        cpu=r.cpu_cost, ram=r.ram_cost, gpu=r.gpu_cost, pv=r.pv_cost,
-        network=r.network_cost, load_balancer=r.load_balancer_cost,
-        shared=r.shared_cost, external=r.external_cost, total=r.total_cost,
+        cpu=r.cpu_cost,
+        ram=r.ram_cost,
+        gpu=r.gpu_cost,
+        pv=r.pv_cost,
+        network=r.network_cost,
+        load_balancer=r.load_balancer_cost,
+        shared=r.shared_cost,
+        external=r.external_cost,
+        total=r.total_cost,
     )
 
 
 def _breakdown_from_timeseries(p: TimeseriesPoint) -> CostBreakdown:
     return CostBreakdown(
-        cpu=p.cpu_cost, ram=p.ram_cost, gpu=p.gpu_cost, pv=p.pv_cost,
-        network=p.network_cost, load_balancer=p.load_balancer_cost,
-        shared=p.shared_cost, external=p.external_cost, total=p.total_cost,
+        cpu=p.cpu_cost,
+        ram=p.ram_cost,
+        gpu=p.gpu_cost,
+        pv=p.pv_cost,
+        network=p.network_cost,
+        load_balancer=p.load_balancer_cost,
+        shared=p.shared_cost,
+        external=p.external_cost,
+        total=p.total_cost,
     )
 
 
@@ -181,10 +195,14 @@ class AllocationsQueryService:
         period: Period,
     ) -> AllocationsTotalsResponse:
         totals = await self.repo.get_totals(
-            cluster_id, date_from=period.date_from, date_to=period.date_to,
+            cluster_id,
+            date_from=period.date_from,
+            date_to=period.date_to,
         )
         days = await self.repo.get_distinct_days(
-            cluster_id, date_from=period.date_from, date_to=period.date_to,
+            cluster_id,
+            date_from=period.date_from,
+            date_to=period.date_to,
         )
         coverage = _build_coverage(period=period, days_with_data=days)
         return AllocationsTotalsResponse(
@@ -209,23 +227,33 @@ class AllocationsQueryService:
         rows: list[AggregatedRow]
         if top is None:
             rows = await self.repo.get_aggregated(
-                cluster_id, date_from=period.date_from, date_to=period.date_to,
-                group_by=group_by, top=None,
+                cluster_id,
+                date_from=period.date_from,
+                date_to=period.date_to,
+                group_by=group_by,
+                top=None,
             )
         else:
             rows = await self.repo.get_aggregated(
-                cluster_id, date_from=period.date_from, date_to=period.date_to,
-                group_by=group_by, top=top + 1,
+                cluster_id,
+                date_from=period.date_from,
+                date_to=period.date_to,
+                group_by=group_by,
+                top=top + 1,
             )
 
         # Cluster-wide total for share computation. Cheaper than re-aggregating.
         totals = await self.repo.get_totals(
-            cluster_id, date_from=period.date_from, date_to=period.date_to,
+            cluster_id,
+            date_from=period.date_from,
+            date_to=period.date_to,
         )
         cluster_total: Decimal = totals.total_cost
 
         days = await self.repo.get_distinct_days(
-            cluster_id, date_from=period.date_from, date_to=period.date_to,
+            cluster_id,
+            date_from=period.date_from,
+            date_to=period.date_to,
         )
         coverage = _build_coverage(period=period, days_with_data=days)
 
@@ -250,6 +278,7 @@ class AllocationsQueryService:
             # breakdown — we sum components from a second repo call to get
             # exact figures, instead of subtracting Decimals (avoids
             # accumulating rounding error and missing 'other' efficiency).
+            assert top is not None
             kept_keys = {r.key for r in kept_rows}
             all_rows = rows  # we already fetched top+1; for true 'other' we need all
             if len(rows) <= top + 1:
@@ -275,9 +304,7 @@ class AllocationsQueryService:
                         (r.load_balancer_cost for r in other_rows), Decimal(0)
                     ),
                     shared=sum((r.shared_cost for r in other_rows), Decimal(0)),
-                    external=sum(
-                        (r.external_cost for r in other_rows), Decimal(0)
-                    ),
+                    external=sum((r.external_cost for r in other_rows), Decimal(0)),
                     total=other_total,
                 ),
                 cpu_efficiency=None,  # weighted avg across heterogeneous keys is misleading
@@ -304,7 +331,9 @@ class AllocationsQueryService:
         top: int | None,
     ) -> AllocationsTimeseriesResponse:
         days = await self.repo.get_distinct_days(
-            cluster_id, date_from=period.date_from, date_to=period.date_to,
+            cluster_id,
+            date_from=period.date_from,
+            date_to=period.date_to,
         )
         coverage = _build_coverage(period=period, days_with_data=days)
         now = datetime.now(timezone.utc)

@@ -118,9 +118,7 @@ class OomRiskRamRule:
         # Cost of safety: additional GiB-hours per month, priced at cluster's
         # empirical $/GiB-hour. ram_unit_cost_per_gib_hour comes from EvaluationContext.
         gib_delta = bytes_delta / _GIB
-        monthly_cost_usd = (
-            gib_delta * ctx.ram_unit_cost_per_gib_hour * _MONTHLY_HOURS
-        )
+        monthly_cost_usd = gib_delta * ctx.ram_unit_cost_per_gib_hour * _MONTHLY_HOURS
 
         evidence = {
             "rule_version": "1.0",
@@ -132,9 +130,7 @@ class OomRiskRamRule:
             "efficiency_p95": _q(efficiency_p95, 4),
             "efficiency_trigger": str(_EFFICIENCY_TRIGGER),
             "safety_margin": str(_SAFETY_MARGIN),
-            "ram_unit_cost_per_gib_hour": _q(
-                ctx.ram_unit_cost_per_gib_hour, 8
-            ),
+            "ram_unit_cost_per_gib_hour": _q(ctx.ram_unit_cost_per_gib_hour, 8),
             "monthly_hours": int(_MONTHLY_HOURS),
             "controller_kind": controller_kind,
             "pods_per_day_avg": _q(

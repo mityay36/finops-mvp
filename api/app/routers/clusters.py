@@ -131,7 +131,9 @@ async def upsert_cluster_credentials(
     except ClusterNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except CredentialValidationError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     return [CredentialMaskedRead(key_name=c.key_name) for c in creds]
 
 

@@ -38,6 +38,7 @@ _GROUP_COLUMNS = {
 @dataclass(frozen=True)
 class AggregatedRow:
     """One row in an aggregated breakdown (group_by × cost components)."""
+
     key: str
     cpu_cost: Decimal
     ram_cost: Decimal
@@ -55,6 +56,7 @@ class AggregatedRow:
 @dataclass(frozen=True)
 class TotalsRow:
     """Aggregated totals for a cluster over a date range."""
+
     cpu_cost: Decimal
     ram_cost: Decimal
     gpu_cost: Decimal
@@ -72,6 +74,7 @@ class TotalsRow:
 @dataclass(frozen=True)
 class TimeseriesPoint:
     """One bucket on a daily timeseries."""
+
     bucket_date: date
     key: str | None  # None for cluster-wide series; namespace/etc for grouped
     cpu_cost: Decimal
@@ -102,7 +105,7 @@ class CostSnapshotRepository:
         affected = 0
         for start in range(0, len(all_rows), _UPSERT_CHUNK):
             chunk = all_rows[start : start + _UPSERT_CHUNK]
-            stmt = pg_insert(CostSnapshot.__table__).values(chunk)
+            stmt = pg_insert(CostSnapshot).values(chunk)
 
             update_cols = {
                 col.name: stmt.excluded[col.name]
@@ -236,7 +239,9 @@ class CostSnapshotRepository:
                 func.coalesce(func.sum(CostSnapshot.network_cost), 0).label("net"),
                 func.coalesce(func.sum(CostSnapshot.load_balancer_cost), 0).label("lb"),
                 func.coalesce(func.sum(CostSnapshot.shared_cost), 0).label("shared"),
-                func.coalesce(func.sum(CostSnapshot.external_cost), 0).label("external"),
+                func.coalesce(func.sum(CostSnapshot.external_cost), 0).label(
+                    "external"
+                ),
                 func.coalesce(func.sum(CostSnapshot.total_cost), 0).label("total"),
                 (cpu_eff_num / func.nullif(cpu_eff_den, 0)).label("cpu_eff"),
                 (ram_eff_num / func.nullif(ram_eff_den, 0)).label("ram_eff"),
@@ -445,9 +450,7 @@ class AllocationsSnapshotRunRepository:
         run.finished_at = datetime.utcnow()
         await self.session.flush()
 
-    async def mark_failed(
-        self, run: AllocationsSnapshotRun, error: str
-    ) -> None:
+    async def mark_failed(self, run: AllocationsSnapshotRun, error: str) -> None:
         run.status = SnapshotRunStatus.FAILED.value
         run.error = error[:2000]
         run.finished_at = datetime.utcnow()

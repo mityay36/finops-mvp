@@ -33,7 +33,7 @@ from app.services.recommendations.types import (
 
 
 # Tunables.
-_CPU_IDLE_THRESHOLD_CORES = Decimal("0.005")           # 5 millicores
+_CPU_IDLE_THRESHOLD_CORES = Decimal("0.005")  # 5 millicores
 _RAM_IDLE_THRESHOLD_BYTES = Decimal(64 * 1024 * 1024)  # 64 MiB
 _MIN_DAYS = 10
 _MIN_MONTHLY_SAVING_USD = Decimal("5.00")
@@ -44,16 +44,18 @@ _P95_FRACTION = Decimal("0.95")
 # Namespaces that must never receive an "idle, delete this" recommendation.
 # These hold cluster infrastructure that is idle by-design (operators,
 # webhooks, agents) and removing them breaks the cluster.
-_SYSTEM_NAMESPACES: frozenset[str] = frozenset({
-    "kube-system",
-    "kube-public",
-    "kube-node-lease",
-    "opencost",
-    "gatekeeper-system",
-    "cattle-system",
-    "ingress-nginx",
-    "cert-manager",
-})
+_SYSTEM_NAMESPACES: frozenset[str] = frozenset(
+    {
+        "kube-system",
+        "kube-public",
+        "kube-node-lease",
+        "opencost",
+        "gatekeeper-system",
+        "cattle-system",
+        "ingress-nginx",
+        "cert-manager",
+    }
+)
 
 # Controller kinds eligible for "delete the workload" advice.
 _ELIGIBLE_KINDS: frozenset[str] = frozenset({"deployment", "statefulset"})
@@ -130,14 +132,10 @@ class IdleWorkloadRule:
             "cpu_used_p95_cores": _q(cpu_p95, 6),
             "ram_used_p95_gib": _q(ram_p95 / _GIB, 4),
             "cpu_idle_threshold_cores": str(_CPU_IDLE_THRESHOLD_CORES),
-            "ram_idle_threshold_gib": _q(
-                _RAM_IDLE_THRESHOLD_BYTES / _GIB, 4
-            ),
+            "ram_idle_threshold_gib": _q(_RAM_IDLE_THRESHOLD_BYTES / _GIB, 4),
             "daily_cost_median_usd": _q(daily_cost_median, 4),
             "controller_kind": controller_kind,
-            "pods_per_day_avg": _q(
-                sum(pods, Decimal(0)) / Decimal(len(pods)), 2
-            ),
+            "pods_per_day_avg": _q(sum(pods, Decimal(0)) / Decimal(len(pods)), 2),
             "monthly_saving_usd": _q(monthly_saving, 4),
             "interpretation": "workload appears idle — consider deleting",
         }

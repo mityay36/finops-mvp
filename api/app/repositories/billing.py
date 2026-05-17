@@ -2,6 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from collections.abc import Iterable
 from uuid import UUID
+from typing import Any
 
 from sqlalchemy import and_, func, literal_column, select
 from sqlalchemy.dialects.postgresql import insert
@@ -9,8 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import BillingRecord
 from app.providers.dto import BillingRecordDTO
-
-
 
 
 _RESOURCE_ID_UNKNOWN = "_unknown_"
@@ -85,7 +84,9 @@ class BillingRepository:
         stmt = select(
             func.coalesce(func.sum(BillingRecord.cost), 0),
             func.coalesce(
-                func.sum(BillingRecord.cost).filter(BillingRecord.is_preemptible.is_(True)),
+                func.sum(BillingRecord.cost).filter(
+                    BillingRecord.is_preemptible.is_(True)
+                ),
                 0,
             ),
         ).where(
@@ -119,7 +120,10 @@ class BillingRepository:
             .group_by(BillingRecord.service_name)
             .order_by(func.sum(BillingRecord.cost).desc())
         )
-        return [(row[0], Decimal(row[1])) for row in (await self.session.execute(stmt)).all()]
+        return [
+            (row[0], Decimal(row[1]))
+            for row in (await self.session.execute(stmt)).all()
+        ]
 
     async def timeseries(
         self,
@@ -129,12 +133,15 @@ class BillingRepository:
         granularity: str,  # 'day' | 'week'
         group_by_service: bool,
     ) -> list[tuple[datetime, str | None, Decimal]]:
-        bucket = func.date_trunc(granularity, BillingRecord.period_start).label("bucket")
+        bucket = func.date_trunc(granularity, BillingRecord.period_start).label(
+            "bucket"
+        )
         cost_sum = func.sum(BillingRecord.cost).label("cost")
 
-        columns = [bucket, cost_sum]
-        group_cols = [bucket]
-        order_cols = [bucket]
+        columns: list[Any] = [bucket, cost_sum]
+        group_cols: list[Any] = [bucket]
+        order_cols: list[Any] = [bucket]
+
         if group_by_service:
             columns.insert(1, BillingRecord.service_name)
             group_cols.append(BillingRecord.service_name)

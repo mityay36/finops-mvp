@@ -11,7 +11,9 @@ from app.models.base import Base, TimestampMixin
 class ProviderCredential(TimestampMixin, Base):
     __tablename__ = "provider_credentials"
     __table_args__ = (
-        UniqueConstraint("cluster_id", "key_name", name="uq_provider_credentials_cluster_key_name"),
+        UniqueConstraint(
+            "cluster_id", "key_name", name="uq_provider_credentials_cluster_key_name"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

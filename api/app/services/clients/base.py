@@ -65,6 +65,10 @@ class BaseHTTPClient:
             ) from exc
         except httpx.HTTPError as exc:
             logger.warning("Upstream network error: %s %s -> %s", relative, params, exc)
-            raise ClientError(f"Upstream {self._base_url}{relative} unreachable: {exc}") from exc
+            raise ClientError(
+                f"Upstream {self._base_url}{relative} unreachable: {exc}"
+            ) from exc
         except ValueError as exc:
-            raise ClientError(f"Upstream {self._base_url}{relative} returned invalid JSON") from exc
+            raise ClientError(
+                f"Upstream {self._base_url}{relative} returned invalid JSON"
+            ) from exc

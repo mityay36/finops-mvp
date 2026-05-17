@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 # a native PG enum would require ALTER TYPE ADD VALUE in a separate
 # transaction, complicating Alembic.
 
+
 class RecommendationStatus(StrEnum):
     OPEN = "open"
     APPLIED = "applied"

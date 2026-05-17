@@ -26,10 +26,7 @@ async def snapshot_all_active_clusters() -> None:
 
     cluster_ids: list = []
     async with AsyncSessionLocal() as session:
-        stmt = (
-            select(ClusterProfile.id)
-            .where(ClusterProfile.is_active.is_(True))
-        )
+        stmt = select(ClusterProfile.id).where(ClusterProfile.is_active.is_(True))
         cluster_ids = list((await session.execute(stmt)).scalars().all())
 
     if not cluster_ids:
@@ -57,7 +54,8 @@ async def snapshot_all_active_clusters() -> None:
         except AllocationsSnapshotError as exc:
             logger.warning(
                 "Scheduled allocations snapshot: cluster %s skipped: %s",
-                cluster_id, exc,
+                cluster_id,
+                exc,
             )
         except Exception:  # noqa: BLE001
             logger.exception(

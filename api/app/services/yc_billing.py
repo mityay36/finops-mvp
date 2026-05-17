@@ -3,12 +3,22 @@
 import csv
 import io
 from collections import defaultdict
+from typing import Any, TypedDict
+
 import boto3
+
 from app.config import settings
 
 
+class _ResourceAgg(TypedDict):
+    cost: float
+    resource_id: str
+    service_name: str
+    is_preemptible: bool
+
+
 class YCBillingService:
-    def __init__(self):
+    def __init__(self) -> None:
         self.s3 = boto3.client(
             "s3",
             endpoint_url="https://storage.yandexcloud.net",
@@ -19,16 +29,15 @@ class YCBillingService:
         self.prefix = settings.yc_prefix
 
     def _get_csv_keys(self, days: int = 30) -> list[str]:
-        keys = []
+        keys: list[str] = []
         paginator = self.s3.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=self.bucket, Prefix=self.prefix):
             for obj in page.get("Contents", []):
                 keys.append(obj["Key"])
         return sorted(keys)[-days:]
 
-    def _parse_resource_name(self, row: dict) -> str:
-        """Строит человекочитаемое имя ресурса из полей CSV"""
-        # K8s-ресурс с лейблом
+    def _parse_resource_name(self, row: dict[str, str]) -> str:
+        """Строит человекочитаемое имя ресурса из полей CSV."""
         svc_name = row.get("label.user_labels.service-name", "").strip()
         svc_ns = row.get("label.user_labels.service-namespace", "").strip()
         vol_name = row.get("label.user_labels.volume-name", "").strip()
@@ -40,12 +49,10 @@ class YCBillingService:
         if svc_name:
             return svc_name
 
-        # Облачный ресурс — по service_name + sku_name
         service = row.get("service_name", "").strip()
         sku = row.get("sku_name", "").strip()
         resource_id = row.get("resource_id", "").strip()
 
-        # Укорачиваем sku до сути
         sku_short = sku
         if "Preemptible VM" in sku:
             sku_short = "Preemptible VM"
@@ -69,20 +76,19 @@ class YCBillingService:
             sku_short = "Cloud DNS"
 
         if resource_id:
-            # Короткий id для tooltip: последние 8 символов
             short_id = resource_id[-8:]
             return f"{service} / {sku_short} (...{short_id})"
         return f"{service} / {sku_short}"
 
-    def _is_preemptible(self, row: dict) -> bool:
+    def _is_preemptible(self, row: dict[str, str]) -> bool:
         return "Preemptible" in row.get("sku_name", "")
 
-    def get_actual_costs(self, days: int = 30) -> dict:
+    def get_actual_costs(self, days: int = 30) -> dict[str, Any]:
         keys = self._get_csv_keys(days)
-        total = 0.0
-        by_service = defaultdict(float)
-        by_namespace = defaultdict(float)
-        resources = []  # детализация ресурсов
+        total: float = 0.0
+        by_service: dict[str, float] = defaultdict(float)
+        by_namespace: dict[str, float] = defaultdict(float)
+        resources: list[dict[str, Any]] = []
         has_preemptible = False
 
         for key in keys:
@@ -104,35 +110,57 @@ class YCBillingService:
                     by_namespace[namespace] += cost
 
                 if cost > 0:
-                    resources.append({
-                        "resource_id": resource_id,
-                        "resource_name": self._parse_resource_name(row),
-                        "service_name": service,
-                        "sku_name": row.get("sku_name", ""),
-                        "cost": round(cost, 4),
-                        "is_preemptible": self._is_preemptible(row),
-                        "namespace": namespace or None,
-                    })
+                    resources.append(
+                        {
+                            "resource_id": resource_id,
+                            "resource_name": self._parse_resource_name(row),
+                            "service_name": service,
+                            "sku_name": row.get("sku_name", ""),
+                            "cost": round(cost, 4),
+                            "is_preemptible": self._is_preemptible(row),
+                            "namespace": namespace or None,
+                        }
+                    )
 
         # Агрегируем по resource_name для дедупликации
-        agg = defaultdict(lambda: {"cost": 0.0, "resource_id": "", "service_name": "", "is_preemptible": False})
-        for r in resources:
-            key_name = r["resource_name"]
-            agg[key_name]["cost"] += r["cost"]
-            agg[key_name]["resource_id"] = r["resource_id"]
-            agg[key_name]["service_name"] = r["service_name"]
-            agg[key_name]["is_preemptible"] = r["is_preemptible"]
+        def _empty_agg() -> _ResourceAgg:
+            return {
+                "cost": 0.0,
+                "resource_id": "",
+                "service_name": "",
+                "is_preemptible": False,
+            }
 
-        top_resources = sorted(
-            [{"resource_name": k, **v, "cost": round(v["cost"], 2)} for k, v in agg.items()],
-            key=lambda x: -x["cost"]
-        )[:15]
+        agg: dict[str, _ResourceAgg] = defaultdict(_empty_agg)
+        for r in resources:
+            key_name: str = r["resource_name"]
+            agg[key_name]["cost"] += float(r["cost"])
+            agg[key_name]["resource_id"] = str(r["resource_id"])
+            agg[key_name]["service_name"] = str(r["service_name"])
+            agg[key_name]["is_preemptible"] = bool(r["is_preemptible"])
+
+        top_resources = [
+            {
+                "resource_name": k,
+                "resource_id": v["resource_id"],
+                "service_name": v["service_name"],
+                "is_preemptible": v["is_preemptible"],
+                "cost": round(v["cost"], 2),
+            }
+            for k, v in sorted(agg.items(), key=lambda kv: -kv[1]["cost"])[:15]
+        ]
 
         return {
             "total": round(total, 2),
             "has_preemptible_nodes": has_preemptible,
-            "by_service": {k: round(v, 2) for k, v in sorted(by_service.items(), key=lambda x: -x[1])},
-            "by_namespace": {k: round(v, 2) for k, v in sorted(by_namespace.items(), key=lambda x: -x[1])},
+            "by_service": {
+                k: round(v, 2)
+                for k, v in sorted(by_service.items(), key=lambda x: -x[1])
+            },
+            "by_namespace": {
+                k: round(v, 2)
+                for k, v in sorted(by_namespace.items(), key=lambda x: -x[1])
+            },
             "top_resources": top_resources,
         }
 

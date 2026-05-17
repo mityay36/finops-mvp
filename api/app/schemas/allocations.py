@@ -25,6 +25,7 @@ class CostBreakdown(BaseModel):
     Currency is whatever the OpenCost deployment is configured to emit
     (RUB for YC, USD for AWS, etc.). The API does no conversion.
     """
+
     model_config = ConfigDict(from_attributes=True)
 
     cpu: Decimal = Decimal(0)
@@ -50,6 +51,7 @@ class CoverageInfo(BaseModel):
     completeness_ratio is a single 0..1 number for UI badges:
         days_with_data / days_requested  (partial days count as 1.0)
     """
+
     requested_from: date_type
     requested_to: date_type
     days_requested: int

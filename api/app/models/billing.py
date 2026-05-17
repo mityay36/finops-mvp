@@ -1,14 +1,18 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.models import ClusterProfile
 from app.models.base import Base
+
+
+if TYPE_CHECKING:
+    from app.models.cluster import ClusterProfile
 
 
 class BillingRecord(Base):
@@ -34,17 +38,29 @@ class BillingRecord(Base):
         nullable=False,
         index=True,
     )
-    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    period_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    period_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     service_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     resource_id: Mapped[str] = mapped_column(String(255), nullable=True, index=True)
     resource_name: Mapped[str] = mapped_column(String(512), nullable=True)
     sku_name: Mapped[str] = mapped_column(String(255), nullable=False)
     cost: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
-    currency: Mapped[str] = mapped_column(String(16), nullable=False, default="RUB", server_default="RUB")
-    label_namespace: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    label_service: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    is_preemptible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    currency: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="RUB", server_default="RUB"
+    )
+    label_namespace: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
+    label_service: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True
+    )
+    is_preemptible: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
