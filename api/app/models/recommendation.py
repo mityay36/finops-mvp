@@ -10,7 +10,6 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
-    Index,
     Numeric,
     Text,
     func,

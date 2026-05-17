@@ -14,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import httpx
-import traceback
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
@@ -32,7 +31,7 @@ from app.repositories.cost_snapshot import (
     AllocationsSnapshotRunRepository,
     CostSnapshotRepository,
 )
-from app.services.clients import OpenCostClient, OpenCostInternalError
+from app.services.clients import OpenCostInternalError
 from app.services.factory import service_factory
 from app.services.snapshot_mapping import map_pod_allocation
 

@@ -7,7 +7,6 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from app.models.recommendation import (
-    RecommendationSeverity,
     RecommendationTargetKind,
 )
 from app.models.snapshot import CostSnapshot

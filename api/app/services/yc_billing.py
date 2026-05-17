@@ -1,6 +1,7 @@
 # app/services/yc_billing.py — обновлённая версия
 
-import csv, io
+import csv
+import io
 from collections import defaultdict
 import boto3
 from app.config import settings

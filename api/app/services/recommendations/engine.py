@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Iterable
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.cluster import ClusterProfile
 from app.models.recommendation import (
     RecommendationSeverity,
 )

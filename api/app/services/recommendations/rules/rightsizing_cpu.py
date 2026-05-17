@@ -23,7 +23,6 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 from statistics import median
-from typing import Iterable
 
 from app.models.recommendation import RecommendationTargetKind, RuleId
 from app.models.snapshot import UNALLOCATED, CostSnapshot

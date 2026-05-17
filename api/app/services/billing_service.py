@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession

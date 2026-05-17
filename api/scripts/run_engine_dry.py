@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from decimal import Decimal
 from uuid import UUID
 
 from app.core.database import AsyncSessionLocal
