@@ -25,3 +25,6 @@ api/venv
 key.json
 
 .vscode
+.mypy_cache
+.pytest_cache
+.ruff_cache
