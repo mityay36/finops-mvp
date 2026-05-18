@@ -76,10 +76,12 @@ class RecommendationRepository:
         ).returning(Recommendation)
 
         result = await self.session.execute(stmt)
-        row = result.mappings().first()
-        assert row is not None, "RETURNING must yield exactly one row"
-        obj = await self.session.get(Recommendation, row["id"])
-        assert obj is not None
+        obj = result.scalars().first()
+        if obj is None:
+            raise RuntimeError(
+                f"upsert_open returned no row for cluster={cluster_id} rule={rule_id} "
+                f"ns={target_namespace} ctrl={target_controller}"
+            )
         return obj
 
     # ── Engine-side: close everything OPEN that did NOT fire this run ───
