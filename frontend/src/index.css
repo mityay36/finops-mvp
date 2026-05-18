@@ -1,242 +1,46 @@
-/* Art direction: FinOps Dashboard → Тёплый перламутр + металлические акценты
-   Palette: warm sand/pearl, primary teal-patina, copper accent
-   Typography: JetBrains Mono (body+display) — моноширинный стиль devtool/dashboard
-*/
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind 4 inline theme — палитра + шрифты + density */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
 
-/* ── Font import ──────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300..800;1,300..800&display=swap');
+  /* Warm off-white scheme */
+  --color-bg: #FAF8F4;
+  --color-card: #FFFFFF;
+  --color-border: #E8E4DC;
+  --color-text: #1F1B16;
+  --color-muted: #6B6359;
 
-/* ── Design Tokens ────────────────────────────────────────────────────── */
-:root {
-  /* Surfaces */
-  --color-bg:               #F5F3EE;
-  --color-surface:          #FAFAF7;
-  --color-surface-2:        #FFFFFF;
-  --color-surface-offset:   #EDEBE4;
-  --color-surface-offset-2: #E5E2D9;
-  --color-surface-dynamic:  #DAD7CE;
-  --color-divider:          #D4D1C8;
-  --color-border:           #CBC8BF;
-
-  /* Text */
-  --color-text:         #1C1A16;
-  --color-text-muted:   #5A5852;
-  --color-text-faint:   #9A9890;
-  --color-text-inverse: #F9F8F4;
-
-  /* Primary — патина teal */
-  --color-primary:           #2B5F5A;
-  --color-primary-hover:     #1E4340;
-  --color-primary-active:    #142E2B;
-  --color-primary-highlight: #D0DEDD;
-  --color-primary-subtle:    #EDF4F3;
-
-  /* Accent — медь */
-  --color-accent:           #B86E2A;
-  --color-accent-hover:     #9A5A20;
-  --color-accent-highlight: #F0E0CF;
-
-  /* Semantic */
-  --color-success:           #3A6B2A;
-  --color-success-highlight: #D4DFD0;
-  --color-warning:           #A0541A;
-  --color-warning-highlight: #F0DFD0;
-  --color-error:             #8B2A35;
-  --color-error-highlight:   #EDD0D3;
-
-  /* Chart palette */
-  --chart-1: #2B5F5A;
-  --chart-2: #B86E2A;
-  --chart-3: #4A8C6A;
-  --chart-4: #7A5C3A;
-  --chart-5: #5A6B7A;
-  --chart-6: #8A6B4A;
-
-  /* Fonts — JetBrains Mono как body и display */
-  --font-display: 'JetBrains Mono', ui-monospace, monospace;
-  --font-body:    'JetBrains Mono', ui-monospace, monospace;
-  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(28, 20, 10, 0.07), 0 1px 2px rgba(28, 20, 10, 0.04);
-  --shadow-md: 0 4px 12px rgba(28, 20, 10, 0.09), 0 2px 4px rgba(28, 20, 10, 0.05);
-  --shadow-lg: 0 12px 32px rgba(28, 20, 10, 0.13), 0 4px 8px rgba(28, 20, 10, 0.07);
-
-  /* Transitions */
-  --transition-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-base: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-slow: 300ms cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Radius */
-  --radius-sm:   0.25rem;
-  --radius-md:   0.375rem;
-  --radius-lg:   0.5rem;
-  --radius-xl:   0.75rem;
-  --radius-full: 9999px;
+  /* Accents */
+  --color-accent-savings: #4A7C59;     /* muted green for savings */
+  --color-accent-warning: #C68A3A;     /* ochre for warnings */
+  --color-accent-critical: #A8443A;    /* muted red for critical */
+  --color-accent-info: #5B7A99;        /* muted blue for info */
 }
 
-/* ── Dark Mode ──────────────────────────────────────────────────────────── */
-[data-theme="dark"] {
-  --color-bg:               #171614;
-  --color-surface:          #1D1C19;
-  --color-surface-2:        #222019;
-  --color-surface-offset:   #1A1917;
-  --color-surface-offset-2: #252320;
-  --color-surface-dynamic:  #2E2C28;
-  --color-divider:          #2A2825;
-  --color-border:           #3A3835;
-  --color-text:             #E0DED8;
-  --color-text-muted:       #7A7870;
-  --color-text-faint:       #5A5855;
-  --color-text-inverse:     #1C1A16;
-  --color-primary:           #5A9B95;
-  --color-primary-hover:     #3D7F79;
-  --color-primary-active:    #2B6360;
-  --color-primary-highlight: #1E3532;
-  --color-primary-subtle:    #1A2E2C;
-  --color-accent:           #D4894A;
-  --color-accent-hover:     #C07030;
-  --color-accent-highlight: #3A2818;
-  --color-success:           #6DAA4A;
-  --color-success-highlight: #1E3018;
-  --color-warning:           #D4784A;
-  --color-warning-highlight: #3A2015;
-  --color-error:             #D46070;
-  --color-error-highlight:   #3A1820;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.38), 0 1px 3px rgba(0, 0, 0, 0.22);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.48), 0 4px 8px rgba(0, 0, 0, 0.28);
-}
-
-/* ── Base Styles ────────────────────────────────────────────────────────── */
 @layer base {
-  *, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
   html {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    scroll-behavior: smooth;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   body {
-    min-height: 100dvh;
-    line-height: 1.55;
-    font-family: var(--font-body);
-    /* BASE font-size = 14px — идеально для mono dashboard */
-    font-size: 15px;
-    color: var(--color-text);
-    background-color: var(--color-bg);
-    transition: background-color var(--transition-slow), color var(--transition-slow);
+    margin: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  img, picture, video, canvas, svg {
-    display: block;
-    max-width: 100%;
-    height: auto;
+  /* Numeric tabular spacing for KPI cards */
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 
-  input, button, textarea, select {
-    font: inherit;
-    color: inherit;
-  }
-
-  /* Все заголовки — тот же JetBrains Mono, жирный */
-  h1, h2, h3, h4 {
-    line-height: 1.2;
-    font-family: var(--font-display);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
-
-  button { cursor: pointer; background: none; border: none; }
-
-  ::selection {
-    background: rgba(43, 95, 90, 0.2);
-    color: var(--color-text);
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 3px;
-    border-radius: var(--radius-sm);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-}
-
-/* ── Scrollbar ──────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: var(--radius-full);
-}
-::-webkit-scrollbar-thumb:hover { background: var(--color-text-faint); }
-
-/* ── Skeleton shimmer ───────────────────────────────────────────────────── */
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-offset) 25%,
-    var(--color-surface-dynamic) 50%,
-    var(--color-surface-offset) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-  border-radius: var(--radius-sm);
-}
-
-/* ── Page enter ─────────────────────────────────────────────────────────── */
-@keyframes page-in {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.page-enter {
-  animation: page-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* ── Tabular numbers ────────────────────────────────────────────────────── */
-.tabular {
-  font-variant-numeric: tabular-nums lining-nums;
-}
-
-/* ── KPI value size ─────────────────────────────────────────────────────── */
-.kpi-value {
-  font-size: clamp(20px, 2.2vw, 26px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
-}
-
-/* ── Page heading ───────────────────────────────────────────────────────── */
-.page-title {
-  font-size: clamp(18px, 2.2vw, 22px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-}
-
-/* ── NavLink: убрать подчёркивание ─────────────────────────────────────── */
-a {
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: none;
+  /* Scrollbar tuning */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
 }

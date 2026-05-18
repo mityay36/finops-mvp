@@ -1,49 +1,20 @@
-import { useState, useCallback } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
-import { Sidebar } from './Sidebar'
-import { TopBar } from './TopBar'
-import { useTheme } from '../../hooks/useTheme'
+import { Outlet, NavLink } from 'react-router-dom'
 
-interface AppShellProps {
-  window: string
-  onWindowChange: (w: string) => void
-  onRefresh: () => void
-}
-
-const PAGE_TITLES: Record<string, string> = {
-  '/':                'Обзор',
-  '/namespaces':      'Неймспейсы',
-  '/recommendations': 'Рекомендации',
-  '/billing':         'Биллинг YC',
-}
-
-export function AppShell({ window: w, onWindowChange, onRefresh }: AppShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { theme, toggle: toggleTheme } = useTheme()
-  const location = useLocation()
-
-  const handleMenuToggle = useCallback(() => setSidebarOpen(o => !o), [])
-  const handleClose      = useCallback(() => setSidebarOpen(false), [])
-
+export function AppShell() {
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
-      <Sidebar open={sidebarOpen} onClose={handleClose} />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar
-          theme={theme}
-          onThemeToggle={toggleTheme}
-          onMenuToggle={handleMenuToggle}
-          window={w}
-          onWindowChange={onWindowChange}
-          onRefresh={onRefresh}
-          title={PAGE_TITLES[location.pathname] ?? 'FinOps'}
-        />
-        {/* Компактный отступ — контент занимает больше пространства */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-5">
-          <Outlet />
-        </main>
-      </div>
+    <div className="min-h-screen flex">
+      <aside className="w-56 border-r border-[var(--color-border)] p-4">
+        <h2 className="font-semibold mb-4">FinOps</h2>
+        <nav className="flex flex-col gap-1 text-sm">
+          <NavLink to="/" end className={({isActive}) => isActive ? 'font-semibold' : ''}>Overview</NavLink>
+          <NavLink to="/namespaces" className={({isActive}) => isActive ? 'font-semibold' : ''}>Namespaces</NavLink>
+          <NavLink to="/recommendations" className={({isActive}) => isActive ? 'font-semibold' : ''}>Recommendations</NavLink>
+          <NavLink to="/billing" className={({isActive}) => isActive ? 'font-semibold' : ''}>Billing</NavLink>
+        </nav>
+      </aside>
+      <main className="flex-1">
+        <Outlet />
+      </main>
     </div>
   )
 }
