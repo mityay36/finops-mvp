@@ -23,3 +23,9 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: redis
+      jsonPointers:
+        - /spec/volumeClaimTemplates
