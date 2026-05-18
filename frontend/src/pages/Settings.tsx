@@ -119,7 +119,7 @@ function CredentialsCard({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fields = provider?.credential_fields ?? []
+  const fields = provider?.credentials ?? []
 
   useEffect(() => {
     if (!editing) setValues({})
@@ -176,13 +176,13 @@ function CredentialsCard({
           <p className="text-xs text-[var(--color-muted)]">Заполните только те поля, которые хотите изменить. Остальные останутся как есть.</p>
           {fields.map(f => (
             <Field
-              key={f.name}
-              label={f.label}
-              hint={f.help_text ?? undefined}
-              type={f.is_secret ? 'password' : 'text'}
-              placeholder={credentials.find(c => c.key_name === f.name)?.masked_preview ?? ''}
-              value={values[f.name] ?? ''}
-              onChange={e => setValues(v => ({ ...v, [f.name]: e.target.value }))}
+                key={f.name}
+                label={f.label}
+                hint={f.help_text ?? undefined}
+                placeholder={credentials.find(c => c.key_name === f.name)?.masked_preview ?? f.placeholder ?? ''}
+                type={f.is_secret ? 'password' : 'text'}
+                value={values[f.name] ?? ''}
+                onChange={e => setValues(v => ({ ...v, [f.name]: e.target.value }))}
             />
           ))}
           {error && <div className="text-xs text-[var(--color-accent-critical)]">{error}</div>}

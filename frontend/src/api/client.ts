@@ -114,12 +114,14 @@ export interface ProviderCredentialFieldRead {
   is_secret: boolean
   required: boolean
   help_text?: string | null
+  placeholder?: string | null
 }
 
 export interface ProviderRead {
   type: ProviderType
-  label: string
-  credential_fields: ProviderCredentialFieldRead[]
+  name: string
+  description?: string | null
+  credentials: ProviderCredentialFieldRead[]
 }
 
 export interface Page<T> {

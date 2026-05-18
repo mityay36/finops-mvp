@@ -33,7 +33,8 @@ export function AddClusterModal({ open, onClose, onCreated }: Props) {
     }
   }, [open])
 
-  const provider = providers.find(p => p.type === providerType)
+  const provider = providers.find(p => p.type === providerType) ?? null
+  const credentialFields = provider?.credentials ?? []
 
   const setCred = (k: string, v: string) => setCreds(prev => ({ ...prev, [k]: v }))
 
@@ -92,18 +93,18 @@ export function AddClusterModal({ open, onClose, onCreated }: Props) {
         <div>
           <span className="text-xs font-medium text-[var(--color-muted)] block mb-1.5">Тип провайдера</span>
           <div className="inline-flex bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md p-0.5">
-            {(['yc', 'onprem'] as ProviderType[]).map(t => (
-              <button
-                key={t}
-                onClick={() => setProviderType(t)}
-                className={`h-8 px-3 text-xs font-medium rounded transition-colors ${
-                  providerType === t
-                    ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
-                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
-                }`}
-              >
-                {t === 'yc' ? 'Yandex Cloud' : 'On-prem'}
-              </button>
+            {providers.map(p => (
+                <button
+                    key={p.type}
+                    onClick={() => setProviderType(p.type)}
+                    className={`h-8 px-3 text-xs font-medium rounded transition-colors ${
+                    providerType === p.type
+                        ? 'bg-[var(--color-text)] text-[var(--color-bg)]'
+                        : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                    }`}
+                >
+                    {p.name}
+                </button>
             ))}
           </div>
         </div>
@@ -129,22 +130,23 @@ export function AddClusterModal({ open, onClose, onCreated }: Props) {
           onChange={e => setVmUrl(e.target.value)}
         />
 
-        {provider && provider.credential_fields.length > 0 && (
-          <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-              Учётные данные
+        {credentialFields.length > 0 && (
+            <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                Учётные данные
+                </div>
+                {credentialFields.map(f => (
+                <Field
+                    key={f.name}
+                    label={f.label + (f.required ? ' *' : '')}
+                    hint={f.help_text ?? undefined}
+                    placeholder={f.placeholder ?? undefined}
+                    type={f.is_secret ? 'password' : 'text'}
+                    value={creds[f.name] ?? ''}
+                    onChange={e => setCred(f.name, e.target.value)}
+                />
+                ))}
             </div>
-            {provider.credential_fields.map(f => (
-              <Field
-                key={f.name}
-                label={f.label + (f.required ? ' *' : '')}
-                hint={f.help_text ?? undefined}
-                type={f.is_secret ? 'password' : 'text'}
-                value={creds[f.name] ?? ''}
-                onChange={e => setCred(f.name, e.target.value)}
-              />
-            ))}
-          </div>
         )}
 
         {error && (
