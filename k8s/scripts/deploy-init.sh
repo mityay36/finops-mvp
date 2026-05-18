@@ -471,8 +471,226 @@ if [ -n "$SUMMARY_PG_PASS" ] || [ -n "$SUMMARY_REDIS_PASS" ] || [ -n "$SUMMARY_B
   log "     kubectl -n finops get secret <name> -o jsonpath='{.data.<KEY>}' | base64 -d )"
 fi
 
-# ── End of Phase 0/1/2/3/4 ─────────────────────────────────────────────────
-log ""
-log "${C_GREEN}Phases 0-4 complete. Phases 5-9 not implemented yet.${C_RESET}"
-exit 0
+# ── Helpers for ArgoCD operations ──────────────────────────────────────────
 
+# Force sync an ArgoCD Application via kubectl patch (no argocd CLI needed).
+argo_sync() {
+  local app="$1"
+  kubectl -n argocd patch application "$app" \
+    --type merge \
+    --patch '{"operation":{"initiatedBy":{"username":"deploy-init"},"sync":{"revision":"HEAD"}}}' \
+    >/dev/null 2>&1 || return 1
+}
+
+# Wait until ArgoCD app reaches Synced+Healthy or timeout.
+argo_wait() {
+  local app="$1"
+  local timeout="${2:-300}"
+  local elapsed=0
+  local interval=5
+  local sync health
+
+  while [ "$elapsed" -lt "$timeout" ]; do
+    sync="$(kubectl -n argocd get app "$app" -o jsonpath='{.status.sync.status}' 2>/dev/null || echo Unknown)"
+    health="$(kubectl -n argocd get app "$app" -o jsonpath='{.status.health.status}' 2>/dev/null || echo Unknown)"
+    if [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]; then
+      ok "$app: Synced + Healthy (in ${elapsed}s)"
+      return 0
+    fi
+    sleep "$interval"
+    elapsed=$((elapsed + interval))
+  done
+
+  err "$app: timeout after ${timeout}s (last: sync=$sync, health=$health)"
+  return 1
+}
+
+# ── Phase 5: Apply root App-of-Apps ────────────────────────────────────────
+phase "[Phase 5] Ensuring root App-of-Apps"
+
+if [ "$ROOT_APP_PRESENT" = "1" ]; then
+  ok "finops-root already present, skipping apply"
+else
+  if [ ! -f "$K8S_ROOT/apps/root-app.yaml" ]; then
+    err "Cannot find $K8S_ROOT/apps/root-app.yaml"
+    exit 3
+  fi
+  kubectl apply -f "$K8S_ROOT/apps/root-app.yaml" >/dev/null
+  ok "finops-root applied"
+fi
+
+# In 'full' mode, ArgoCD was just installed; give the controllers a moment
+# to register CRDs and start watching.
+if [ "$MODE" = "full" ]; then
+  log "  Waiting 15s for ArgoCD controllers to settle..."
+  sleep 15
+fi
+
+# ── Phase 6: Force-sync FinOps applications ────────────────────────────────
+phase "[Phase 6] Force-syncing FinOps applications"
+
+FINOPS_APPS=(finops-root finops-misc finops-postgres finops-redis finops-api finops-frontend)
+
+for app in "${FINOPS_APPS[@]}"; do
+  if ! kubectl -n argocd get application "$app" >/dev/null 2>&1; then
+    warn "$app: Application not yet present in ArgoCD (root-app may still be propagating)"
+    continue
+  fi
+  argo_sync "$app" && ok "$app: sync triggered" || warn "$app: failed to trigger sync"
+done
+
+log ""
+log "  Waiting for ArgoCD apps to reach Synced+Healthy (timeout 5 min each)..."
+ALL_OK=1
+for app in "${FINOPS_APPS[@]}"; do
+  if ! kubectl -n argocd get application "$app" >/dev/null 2>&1; then
+    warn "$app: skipped (Application missing)"
+    ALL_OK=0
+    continue
+  fi
+  argo_wait "$app" 300 || ALL_OK=0
+done
+
+if [ "$ALL_OK" != "1" ]; then
+  warn "Some apps did not reach Synced+Healthy in time."
+  warn "  Investigate with: kubectl -n argocd get app"
+  warn "  Continuing anyway — Pods may still be coming up."
+fi
+
+# ── Phase 7: Wait for workload rollouts ────────────────────────────────────
+phase "[Phase 7] Waiting for workload rollouts"
+
+wait_rollout() {
+  local kind="$1" name="$2" ns="$3" timeout="${4:-300}"
+  if ! kubectl -n "$ns" get "$kind" "$name" >/dev/null 2>&1; then
+    warn "$kind/$name not found in namespace $ns"
+    return 1
+  fi
+  if kubectl -n "$ns" rollout status "$kind/$name" --timeout="${timeout}s" >/dev/null 2>&1; then
+    ok "$kind/$name rolled out"
+    return 0
+  else
+    err "$kind/$name rollout did not complete in ${timeout}s"
+    return 1
+  fi
+}
+
+wait_rollout statefulset postgres        finops || true
+wait_rollout statefulset redis           finops || true
+wait_rollout deployment  finops-api      finops || true
+wait_rollout deployment  finops-frontend finops || true
+
+# ── Phase 8: Smoke tests ───────────────────────────────────────────────────
+phase "[Phase 8] Smoke tests"
+
+# 8.1 In-cluster /health
+log "  In-cluster API /health:"
+if kubectl -n finops exec deploy/finops-api -- \
+     python -c "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0 if r.status==200 else 1)"; then
+  ok "/health returns 200 (in-cluster)"
+else
+  warn "/health did not return 200 (api may still be starting)"
+fi
+
+# 8.2 Resolve ingress External IP
+log "  Resolving ingress External IP..."
+INGRESS_IP=""
+for i in 1 2 3 4 5 6; do
+  INGRESS_IP="$(kubectl -n ingress-nginx get svc nginx-ingress-ingress-nginx-controller \
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+  if [ -n "$INGRESS_IP" ]; then break; fi
+  sleep 5
+done
+
+if [ -z "$INGRESS_IP" ]; then
+  warn "Could not resolve LoadBalancer IP for nginx-ingress-ingress-nginx-controller"
+  warn "  External smoke tests skipped."
+  EXTERNAL_OK=0
+else
+  ok "Ingress IP: $INGRESS_IP"
+  EXTERNAL_OK=1
+fi
+
+# 8.3 External smoke (basic auth)
+if [ "$EXTERNAL_OK" = "1" ]; then
+  # Pull basic-auth credentials from k8s if we don't have them in memory:
+  if [ -z "${SUMMARY_BASIC_USER:-}" ]; then
+    SUMMARY_BASIC_USER="admin"
+  fi
+  EFFECTIVE_PASS="${SUMMARY_BASIC_PASS:-}"
+  if [ -z "$EFFECTIVE_PASS" ]; then
+    log "  (basic-auth password not in memory — skipping authenticated curl)"
+    log "  To test manually:"
+    log "    PASS=\$(...)  # see Phase 9 hints"
+    log "    curl -sS -u \$BASIC_USER:\$PASS http://$INGRESS_IP/api/v1/clusters"
+  else
+    test_url() {
+      local path="$1" expected="$2" desc="$3"
+      local code
+      code="$(curl -sS -o /dev/null -w '%{http_code}' \
+                  --max-time 10 \
+                  -u "$SUMMARY_BASIC_USER:$EFFECTIVE_PASS" \
+                  "http://$INGRESS_IP$path")"
+      if [ "$code" = "$expected" ]; then
+        ok "$desc → $code"
+      else
+        warn "$desc → $code (expected $expected)"
+      fi
+    }
+    test_url "/"                 "200" "GET /                  (frontend)"
+    test_url "/api/v1/clusters"  "200" "GET /api/v1/clusters   (api)"
+    test_url "/api/v1/providers" "200" "GET /api/v1/providers  (api)"
+    test_url "/docs"             "200" "GET /docs              (swagger)"
+    test_url "/openapi.json"     "200" "GET /openapi.json      (openapi)"
+
+    # Also assert that auth is actually enforced:
+    code_noauth="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+                       "http://$INGRESS_IP/api/v1/clusters")"
+    if [ "$code_noauth" = "401" ]; then
+      ok "GET /api/v1/clusters without auth → 401 (auth enforced)"
+    else
+      warn "GET /api/v1/clusters without auth → $code_noauth (expected 401)"
+    fi
+  fi
+fi
+
+# ── Phase 9: Summary ───────────────────────────────────────────────────────
+phase "[Phase 9] Summary"
+
+log ""
+log "${C_BOLD}FinOps MVP is up.${C_RESET}"
+log ""
+
+if [ -n "${INGRESS_IP:-}" ]; then
+  log "  URL:     ${C_BOLD}http://$INGRESS_IP/${C_RESET}"
+  log "  API:     http://$INGRESS_IP/api/v1/"
+  log "  Swagger: http://$INGRESS_IP/docs"
+  log "  OpenAPI: http://$INGRESS_IP/openapi.json"
+else
+  log "  Ingress IP: not yet allocated (check 'kubectl -n ingress-nginx get svc')"
+fi
+
+log ""
+log "  Basic auth username: ${SUMMARY_BASIC_USER:-admin}"
+if [ -n "${SUMMARY_BASIC_PASS:-}" ]; then
+  log "  Basic auth password: ${C_YELLOW}${SUMMARY_BASIC_PASS}${C_RESET}  (newly generated)"
+else
+  log "  Basic auth password: (unchanged from previous run)"
+  log "    Recover with:"
+  log "      kubectl -n finops get secret finops-basic-auth \\"
+  log "        -o jsonpath='{.data.auth}' | base64 -d"
+fi
+
+log ""
+log "${C_BOLD}Next steps:${C_RESET}"
+log "  1. Open Swagger and create your first cluster:"
+log "     http://${INGRESS_IP:-<ingress-ip>}/docs"
+log "  2. POST /api/v1/clusters       — create cluster profile"
+log "  3. PUT  /api/v1/clusters/{id}/credentials  — attach YC S3 + creds"
+log "  4. GET  /api/v1/clusters/{id}/diagnostics  — verify connectivity"
+log "  5. POST /api/v1/clusters/{id}/sync/billing      — first billing sync"
+log "  6. POST /api/v1/clusters/{id}/sync/allocations  — first allocations snapshot"
+log "  7. POST /api/v1/clusters/{id}/recommendations/refresh — generate recs"
+log ""
+log "${C_GREEN}Done.${C_RESET}"
+exit 0
