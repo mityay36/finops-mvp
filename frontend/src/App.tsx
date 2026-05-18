@@ -1,9 +1,9 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/Layout/AppShell'
 import Overview from './pages/Overview'
-import Namespaces from './pages/Namespaces'
+import Allocations from './pages/Allocations'
 import Recommendations from './pages/Recommendations'
-import Billing from './pages/Billing'
+import Settings from './pages/Settings'
 
 export default function App() {
   return (
@@ -11,9 +11,10 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<Overview />} />
-          <Route path="/namespaces" element={<Namespaces />} />
+          <Route path="/allocations" element={<Allocations />} />
           <Route path="/recommendations" element={<Recommendations />} />
-          <Route path="/billing" element={<Billing />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

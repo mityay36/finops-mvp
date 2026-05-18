@@ -1,98 +1,47 @@
-import { Menu, Sun, Moon, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { ClusterPicker } from '../ClusterPicker'
+import { PeriodPicker } from '../PeriodPicker'
+import { AddClusterModal } from '../AddClusterModal'
+import { Button } from '../UI/Button'
+import type { ClusterRead } from '../../api/client'
 
-interface TopBarProps {
-  theme: 'light' | 'dark'
-  onThemeToggle: () => void
-  onMenuToggle: () => void
-  window: string
-  onWindowChange: (w: string) => void
-  onRefresh?: () => void
-  title?: string
+interface Props {
+  clusters: ClusterRead[]
+  onClustersChanged: () => void
 }
 
-const WINDOWS = [
-  { label: '7д',  value: '7d'  },
-  { label: '30д', value: '30d' },
-  { label: '90д', value: '90d' },
-]
+export function TopBar({ clusters, onClustersChanged }: Props) {
+  const [addOpen, setAddOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-export function TopBar({
-  theme, onThemeToggle, onMenuToggle,
-  window: selectedWindow, onWindowChange, onRefresh, title,
-}: TopBarProps) {
+  const handleRefresh = () => {
+    setRefreshing(true)
+    onClustersChanged()
+    setTimeout(() => setRefreshing(false), 500)
+  }
+
   return (
     <header
-      className="sticky top-0 z-10 flex items-center justify-between px-4 md:px-5 h-12 border-b flex-shrink-0"
-      style={{
-        background: 'var(--color-surface)',
-        borderColor: 'rgba(28,20,10,0.08)',
-      }}
+      className="h-14 border-b border-[var(--color-border)] bg-[var(--color-card)] flex items-center px-6 gap-3 sticky top-0 z-20"
     >
-      {/* Left */}
-      <div className="flex items-center gap-2.5">
-        <button
-          onClick={onMenuToggle}
-          className="md:hidden p-2 rounded-md transition-colors hover:bg-[var(--color-surface-offset)]"
-          style={{ color: 'var(--color-text-muted)' }}
-          aria-label="Открыть меню"
-        >
-          <Menu size={16} />
-        </button>
-        {title && (
-          <span
-            className="font-semibold text-sm hidden md:block"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            {title}
-          </span>
-        )}
-      </div>
+      <ClusterPicker clusters={clusters} onAddNew={() => setAddOpen(true)} />
+      <div className="flex-1" />
+      <PeriodPicker />
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={handleRefresh}
+        leftIcon={<RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />}
+      >
+        Обновить
+      </Button>
 
-      {/* Right */}
-      <div className="flex items-center gap-1.5">
-        {/* Window selector */}
-        <div
-          className="flex items-center rounded-md p-0.5 gap-0.5"
-          style={{ background: 'var(--color-surface-offset)' }}
-        >
-          {WINDOWS.map(({ label, value }) => (
-            <button
-              key={value}
-              onClick={() => onWindowChange(value)}
-              className="px-2.5 py-1 rounded-sm text-xs font-medium transition-all duration-150"
-              style={{
-                background: selectedWindow === value ? 'var(--color-surface-2)' : 'transparent',
-                color: selectedWindow === value ? 'var(--color-text)' : 'var(--color-text-muted)',
-                boxShadow: selectedWindow === value ? 'var(--shadow-sm)' : 'none',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Refresh */}
-        {onRefresh && (
-          <button
-            onClick={onRefresh}
-            className="p-1.5 rounded-md transition-all hover:bg-[var(--color-surface-offset)] active:scale-95"
-            style={{ color: 'var(--color-text-muted)' }}
-            aria-label="Обновить"
-          >
-            <RefreshCw size={14} />
-          </button>
-        )}
-
-        {/* Theme */}
-        <button
-          onClick={onThemeToggle}
-          className="p-1.5 rounded-md transition-all hover:bg-[var(--color-surface-offset)] active:scale-95"
-          style={{ color: 'var(--color-text-muted)' }}
-          aria-label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-        >
-          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-        </button>
-      </div>
+      <AddClusterModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => { setAddOpen(false); onClustersChanged() }}
+      />
     </header>
   )
 }

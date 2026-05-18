@@ -1,20 +1,44 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
+import { Sidebar } from './Sidebar'
+import { TopBar } from './TopBar'
+import { useClusters } from '../../hooks/useClusters'
+import { EmptyClusterState } from '../EmptyClusterState'
+import { Loader2 } from 'lucide-react'
 
 export function AppShell() {
+  const { data, loading, error, refetch } = useClusters()
+
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-56 border-r border-[var(--color-border)] p-4">
-        <h2 className="font-semibold mb-4">FinOps</h2>
-        <nav className="flex flex-col gap-1 text-sm">
-          <NavLink to="/" end className={({isActive}) => isActive ? 'font-semibold' : ''}>Overview</NavLink>
-          <NavLink to="/namespaces" className={({isActive}) => isActive ? 'font-semibold' : ''}>Namespaces</NavLink>
-          <NavLink to="/recommendations" className={({isActive}) => isActive ? 'font-semibold' : ''}>Recommendations</NavLink>
-          <NavLink to="/billing" className={({isActive}) => isActive ? 'font-semibold' : ''}>Billing</NavLink>
-        </nav>
-      </aside>
-      <main className="flex-1">
-        <Outlet />
-      </main>
+    <div className="min-h-screen flex bg-[var(--color-bg)] text-[var(--color-text)]">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar
+          clusters={data?.items ?? []}
+          onClustersChanged={refetch}
+        />
+
+        <main className="flex-1 flex flex-col">
+          {loading && (
+            <div className="flex-1 flex items-center justify-center">
+              <Loader2 size={20} className="animate-spin text-[var(--color-muted)]" />
+            </div>
+          )}
+          {!loading && error && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-sm text-[var(--color-accent-critical)] mb-2">
+                  Не удалось загрузить кластеры
+                </p>
+                <p className="text-xs text-[var(--color-muted)]">{error}</p>
+              </div>
+            </div>
+          )}
+          {!loading && !error && data && data.items.length === 0 && (
+            <EmptyClusterState onCreated={refetch} />
+          )}
+          {!loading && !error && data && data.items.length > 0 && <Outlet />}
+        </main>
+      </div>
     </div>
   )
 }
