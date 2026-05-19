@@ -14,7 +14,6 @@ from app.services.factory import service_factory
 from app.services.recommendations.rules._thresholds import WINDOW_DAYS, MIN_VALID_DAYS
 
 
-
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
@@ -22,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 logger.info(
     "Engine initialized: window_days=%d min_valid_days=%d",
-    WINDOW_DAYS, MIN_VALID_DAYS,
+    WINDOW_DAYS,
+    MIN_VALID_DAYS,
 )
 
 
