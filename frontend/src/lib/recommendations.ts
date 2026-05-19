@@ -37,6 +37,7 @@ export interface RecommendedAction {
   kubectl?: string
   /** Тон действия — saving (зелёный) или cost_of_safety (янтарный). */
   tone: ImpactKind
+  rawEvidence?: Record<string, unknown>   
 }
 
 const ev = (e: Record<string, unknown>, k: string): string | undefined => {
@@ -119,6 +120,7 @@ function buildRightsizingCpu(rec: RecommendationDetail, e: Record<string, unknow
       ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=cpu=${mCores(recCores)}`
       : undefined,
     tone: 'saving',
+    rawEvidence: e,
   }
 }
 
@@ -153,6 +155,7 @@ function buildRightsizingRam(rec: RecommendationDetail, e: Record<string, unknow
       ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=memory=${mBytes(recRam)}`
       : undefined,
     tone: 'saving',
+    rawEvidence: e,
   }
 }
 
@@ -187,5 +190,6 @@ function buildOomRiskRam(rec: RecommendationDetail, e: Record<string, unknown>):
       ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=memory=${mBytes(recRam)}`
       : undefined,
     tone: 'cost_of_safety',
+    rawEvidence: e,
   }
 }

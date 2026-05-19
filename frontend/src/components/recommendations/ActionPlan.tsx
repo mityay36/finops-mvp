@@ -50,7 +50,7 @@ export function ActionPlan({ action }: { action: RecommendedAction }) {
         <div>
           <SectionLabel>команда kubectl (быстрое применение)</SectionLabel>
           <div className="relative group">
-            <pre className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md p-3 pr-12 overflow-x-auto" style={{ fontFamily: 'var(--font-mono)' }}>
+            <pre className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md p-3 pr-12 whitespace-pre-wrap break-all" style={{ fontFamily: 'var(--font-mono)' }}>
               {action.kubectl}
             </pre>
             <button
@@ -91,15 +91,25 @@ export function ActionPlan({ action }: { action: RecommendedAction }) {
       )}
 
       {/* Raw evidence — collapsed by default */}
-      <div>
-        <button
-          onClick={() => setShowRaw(s => !s)}
-          className="flex items-center gap-1.5 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors"
-        >
-          {showRaw ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-          Показать сырые данные (evidence)
-        </button>
-      </div>
+			{action.rawEvidence && Object.keys(action.rawEvidence).length > 0 && (
+				<div>
+					<button
+						onClick={() => setShowRaw(s => !s)}
+						className="flex items-center gap-1.5 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors"
+					>
+						{showRaw ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+						{showRaw ? 'Скрыть сырые данные' : 'Показать сырые данные (evidence)'}
+					</button>
+					{showRaw && (
+						<pre
+							className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-3 mt-2 overflow-x-auto"
+							style={{ fontFamily: 'var(--font-mono)' }}
+						>
+							{JSON.stringify(action.rawEvidence, null, 2)}
+						</pre>
+					)}
+				</div>
+			)}
     </div>
   )
 }

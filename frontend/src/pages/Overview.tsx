@@ -293,7 +293,7 @@ function ReconcileItem({
         </div>
         <Badge tone="neutral">{fmtPercent(share)}</Badge>
       </div>
-      <div className="text-xl font-semibold tabular" style={{ color }}>{value}</div>c
+      <div className="text-xl font-semibold tabular" style={{ color }}>{value}</div>
       <p className="text-xs text-[var(--color-muted)] leading-relaxed">{hint}</p>
     </div>
   )
