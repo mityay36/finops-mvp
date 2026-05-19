@@ -10,8 +10,8 @@ interface Props {
 
 export function CostTrendChart({ points, currency, height = 240 }: Props) {
   const data = points.map(p => ({
-    date: p.date,
-    total: parseFloat(p.total),
+    date: p.timestamp,
+    total: parseFloat(p.cost),
   }))
 
   return (

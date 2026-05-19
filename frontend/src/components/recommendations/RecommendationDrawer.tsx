@@ -5,6 +5,8 @@ import { Field } from '../UI/Field'
 import { SeverityBadge } from './SeverityBadge'
 import { StatusBadge } from './StatusBadge'
 import { api, ApiError, type RecommendationDetail } from '../../api/client'
+import { useCurrency } from '../../state/currency'
+import { ruleLabel } from '../../lib/recommendations'
 import { fmtMoney, fmtRelative } from '../../lib/format'
 
 interface Props {
@@ -16,6 +18,7 @@ interface Props {
 }
 
 export function RecommendationDrawer({ open, clusterId, recId, onClose, onChanged }: Props) {
+  const { currency } = useCurrency()
   const [detail, setDetail] = useState<RecommendationDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,21 +41,18 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
     setActing(true); setError(null)
     try {
       const updated = await api.applyRecommendation(clusterId, recId)
-      setDetail(updated)
-      onChanged()
+      setDetail(updated); onChanged()
     } catch (e) {
       setError(e instanceof ApiError ? `Ошибка ${e.status}: ${e.statusText}` : 'Ошибка')
     } finally { setActing(false) }
   }
 
   const dismiss = async () => {
-    if (!recId || !dismissReason.trim()) return
+    if (!recId || dismissReason.trim().length < 3) return
     setActing(true); setError(null)
     try {
       const updated = await api.dismissRecommendation(clusterId, recId, dismissReason.trim())
-      setDetail(updated)
-      setShowDismissForm(false)
-      onChanged()
+      setDetail(updated); setShowDismissForm(false); onChanged()
     } catch (e) {
       setError(e instanceof ApiError ? `Ошибка ${e.status}: ${e.statusText}` : 'Ошибка')
     } finally { setActing(false) }
@@ -65,15 +65,13 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
       width={560}
       title={
         detail ? (
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <SeverityBadge severity={detail.severity} />
-                <StatusBadge status={detail.status} />
-                <span className="text-xs text-[var(--color-muted)]">{detail.rule_id}</span>
-              </div>
-              <h2 className="text-base font-semibold truncate">{detail.title}</h2>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <SeverityBadge severity={detail.severity} />
+              <StatusBadge status={detail.status} />
+              <span className="text-xs text-[var(--color-muted)] font-mono">{detail.rule_id}</span>
             </div>
+            <h2 className="text-base font-semibold truncate">{ruleLabel(detail.rule_id)}</h2>
           </div>
         ) : (
           <span className="text-base font-semibold">Рекомендация</span>
@@ -84,15 +82,13 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
           showDismissForm ? (
             <>
               <Button variant="ghost" onClick={() => setShowDismissForm(false)} disabled={acting}>Отмена</Button>
-              <Button variant="danger" onClick={dismiss} disabled={acting || !dismissReason.trim()}>
+              <Button variant="danger" onClick={dismiss} disabled={acting || dismissReason.trim().length < 3}>
                 Подтвердить отклонение
               </Button>
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setShowDismissForm(true)} disabled={acting}>
-                Отклонить
-              </Button>
+              <Button variant="ghost" onClick={() => setShowDismissForm(true)} disabled={acting}>Отклонить</Button>
               <Button variant="primary" onClick={apply} disabled={acting}>
                 {acting ? 'Применяю...' : 'Отметить применённым'}
               </Button>
@@ -111,8 +107,8 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
           <Section label="Цель">
             <div className="text-sm">
               <span className="text-[var(--color-muted)]">{detail.target_kind}</span>
-              {detail.target_namespace && <> · <span>ns: <span className="font-medium">{detail.target_namespace}</span></span></>}
-              {detail.target_name && <> · <span className="font-medium">{detail.target_name}</span></>}
+              {detail.target_namespace && <> · ns: <span className="font-medium">{detail.target_namespace}</span></>}
+              {detail.target_controller && <> · <span className="font-medium">{detail.target_controller}</span></>}
             </div>
           </Section>
 
@@ -125,32 +121,18 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
                   : 'var(--color-accent-warning)',
               }}
             >
-              {fmtMoney(detail.monthly_impact, detail.currency)} <span className="text-sm font-normal text-[var(--color-muted)]">/ мес</span>
+              {fmtMoney(parseFloat(detail.monthly_impact_usd) || 0, currency)}
+              <span className="text-sm font-normal text-[var(--color-muted)]"> / мес</span>
             </div>
-          </Section>
-
-          <Section label="Описание">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.description}</p>
           </Section>
 
           {detail.evidence && Object.keys(detail.evidence).length > 0 && (
             <Section label="Доказательства">
               <pre
-                className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-3 overflow-x-auto font-mono"
+                className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-3 overflow-x-auto"
                 style={{ fontFamily: 'var(--font-mono)' }}
               >
                 {JSON.stringify(detail.evidence, null, 2)}
-              </pre>
-            </Section>
-          )}
-
-          {detail.remediation && Object.keys(detail.remediation).length > 0 && (
-            <Section label="Как исправить">
-              <pre
-                className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-3 overflow-x-auto font-mono"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                {JSON.stringify(detail.remediation, null, 2)}
               </pre>
             </Section>
           )}
@@ -162,13 +144,14 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
           )}
 
           <div className="text-xs text-[var(--color-muted)] pt-2 border-t border-[var(--color-border)]">
-            Создано {fmtRelative(detail.created_at)} · обновлено {fmtRelative(detail.updated_at)}
+            Впервые обнаружено {fmtRelative(detail.first_seen_at)} · последний раз {fmtRelative(detail.last_seen_at)}
+            {detail.resolved_at && <> · решено {fmtRelative(detail.resolved_at)}</>}
           </div>
 
           {showDismissForm && (
             <div className="border-t border-[var(--color-border)] pt-4">
               <Field
-                label="Причина отклонения"
+                label="Причина отклонения (минимум 3 символа)"
                 placeholder="Например: ложное срабатывание, нагрузка ожидаемая"
                 value={dismissReason}
                 onChange={e => setDismissReason(e.target.value)}

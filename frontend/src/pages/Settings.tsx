@@ -40,20 +40,11 @@ function SettingsContent({ clusterId }: { clusterId: string }) {
         )}
       </div>
 
-      <Card title="Параметры подключения">
-        {cluster.loading ? (
-          <Skeleton className="h-32 w-full" />
-        ) : cluster.data ? (
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            <Row label="Имя" value={cluster.data.name} />
-            <Row label="Тип" value={cluster.data.provider_type === 'yc' ? 'Yandex Cloud' : 'On-prem'} />
-            <Row label="OpenCost URL" value={<code className="font-mono text-xs">{cluster.data.opencost_url}</code>} />
-            <Row label="VictoriaMetrics URL" value={<code className="font-mono text-xs">{cluster.data.vm_url}</code>} />
-            <Row label="Активен" value={cluster.data.is_active ? <Badge tone="success">Да</Badge> : <Badge tone="neutral">Нет</Badge>} />
-            <Row label="Создан" value={fmtDate(cluster.data.created_at)} />
-          </dl>
-        ) : null}
-      </Card>
+      <ConnectionCard
+        clusterId={clusterId}
+        cluster={cluster.data ?? null}
+        onSaved={() => cluster.refetch()}
+      />
 
       <CredentialsCard
         clusterId={clusterId}
@@ -102,6 +93,90 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
       <dt className="text-[11px] uppercase tracking-wide text-[var(--color-muted)] font-medium">{label}</dt>
       <dd className="mt-0.5 break-all">{value}</dd>
     </div>
+  )
+}
+
+function ConnectionCard({ clusterId, cluster, onSaved }: {
+  clusterId: string
+  cluster: import('../api/client').ClusterDetailedRead | null
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState('')
+  const [opencostUrl, setOpencostUrl] = useState('')
+  const [vmUrl, setVmUrl] = useState('')
+  const [isActive, setIsActive] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const startEdit = () => {
+    if (!cluster) return
+    setName(cluster.name)
+    setOpencostUrl(cluster.opencost_url)
+    setVmUrl(cluster.vm_url)
+    setIsActive(cluster.is_active)
+    setError(null)
+    setEditing(true)
+  }
+
+  const save = async () => {
+    if (!cluster) return
+    setSaving(true); setError(null)
+    try {
+      const patch: import('../api/client').ClusterUpdate = {}
+      if (name !== cluster.name) patch.name = name.trim()
+      if (opencostUrl !== cluster.opencost_url) patch.opencost_url = opencostUrl.trim()
+      if (vmUrl !== cluster.vm_url) patch.vm_url = vmUrl.trim()
+      if (isActive !== cluster.is_active) patch.is_active = isActive
+      if (Object.keys(patch).length === 0) { setEditing(false); return }
+      await api.updateCluster(clusterId, patch)
+      setEditing(false)
+      onSaved()
+    } catch (e) {
+      setError(e instanceof ApiError ? `${e.status}: ${e.statusText}` : 'Ошибка')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Card
+      title="Параметры подключения"
+      action={
+        !editing ? (
+          <Button size="sm" variant="secondary" onClick={startEdit} disabled={!cluster}>Редактировать</Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>Отмена</Button>
+            <Button size="sm" variant="primary" onClick={save} disabled={saving}>
+              {saving ? 'Сохраняю...' : 'Сохранить'}
+            </Button>
+          </div>
+        )
+      }
+    >
+      {!cluster ? (
+        <Skeleton className="h-32 w-full" />
+      ) : !editing ? (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <Row label="Имя" value={cluster.name} />
+          <Row label="Тип" value={cluster.provider_type === 'yc' ? 'Yandex Cloud' : 'On-prem'} />
+          <Row label="OpenCost URL" value={<code className="font-mono text-xs">{cluster.opencost_url}</code>} />
+          <Row label="VictoriaMetrics URL" value={<code className="font-mono text-xs">{cluster.vm_url}</code>} />
+          <Row label="Активен" value={cluster.is_active ? <Badge tone="success">Да</Badge> : <Badge tone="neutral">Нет</Badge>} />
+          <Row label="Создан" value={fmtDate(cluster.created_at)} />
+        </dl>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <Field label="Имя кластера" value={name} onChange={e => setName(e.target.value)} />
+          <Field label="OpenCost URL" value={opencostUrl} onChange={e => setOpencostUrl(e.target.value)} />
+          <Field label="VictoriaMetrics URL" value={vmUrl} onChange={e => setVmUrl(e.target.value)} />
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+            <span>Активен</span>
+          </label>
+          {error && <div className="text-xs text-[var(--color-accent-critical)]">{error}</div>}
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -198,7 +273,22 @@ function SyncBlock({
   kind: 'billing' | 'allocations'
   label: string
   icon: React.ReactNode
-  run: { status: string; started_at: string; finished_at: string | null; error_message?: string | null; error?: string | null; window_start: string; window_end: string } | null | undefined
+  run:
+  | {
+      status?: string
+      started_at?: string
+      finished_at?: string | null
+      error_message?: string | null
+      error?: string | null
+      window_start: string
+      window_end: string
+      records_imported?: number
+      days_processed?: number
+      rows_upserted?: number
+    }
+  | null
+  | undefined
+
   loading: boolean
   onTrigger: (force?: boolean) => Promise<void>
 }) {
@@ -215,7 +305,6 @@ function SyncBlock({
   }
 
   const errMsg = run?.error_message ?? run?.error ?? null
-  const isSuccess = run?.status === 'success' || run?.status === 'completed'
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -227,16 +316,21 @@ function SyncBlock({
             <Skeleton className="h-3 w-40 mt-1" />
           ) : run ? (
             <div className="text-xs text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap">
-              {isSuccess ? (
-                <Badge tone="success"><CheckCircle2 size={11} /> {run.status}</Badge>
-              ) : errMsg ? (
-                <Badge tone="critical"><AlertCircle size={11} /> {run.status}</Badge>
-              ) : (
-                <Badge tone="medium">{run.status}</Badge>
-              )}
-              <span>Окно: {fmtDate(run.window_start)} → {fmtDate(run.window_end)}</span>
-              <span>·</span>
-              <span>{run.finished_at ? `завершён ${fmtRelative(run.finished_at)}` : `запущен ${fmtRelative(run.started_at)}`}</span>
+              {run.status ? (
+								run.status === 'success' ? (
+										<Badge tone="success"><CheckCircle2 size={11} /> {run.status}</Badge>
+								) : run.error || run.error_message ? (
+										<Badge tone="critical"><AlertCircle size={11} /> {run.status}</Badge>
+								) : (
+										<Badge tone="medium">{run.status}</Badge>
+								)
+								) : (
+								<Badge tone="success"><CheckCircle2 size={11} /> success</Badge>
+								)}
+								<span>Окно: {fmtDate(run.window_start)} → {fmtDate(run.window_end)}</span>
+								{run.finished_at && (<><span>·</span><span>завершён {fmtRelative(run.finished_at)}</span></>)}
+								{run.records_imported !== undefined && (<><span>·</span><span>{run.records_imported} записей</span></>)}
+								{run.days_processed !== undefined && (<><span>·</span><span>{run.days_processed} дней / {run.rows_upserted} строк</span></>)}
             </div>
           ) : (
             <div className="text-xs text-[var(--color-muted)] mt-0.5">Запусков ещё не было</div>

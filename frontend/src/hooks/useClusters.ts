@@ -7,7 +7,7 @@ import { useCluster } from '../state/cluster'
 // or points to a stale cluster that no longer exists.
 export function useClusters() {
   const { currentClusterId, setCurrentClusterId } = useCluster()
-  const state = useApi(() => api.listClusters({ limit: 100 }), [])
+  const state = useApi(() => api.listClusters(100), [])
 
   useEffect(() => {
     if (!state.data) return

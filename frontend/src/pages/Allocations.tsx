@@ -8,12 +8,16 @@ import { Card } from '../components/UI/Card'
 import { Skeleton } from '../components/UI/Skeleton'
 import { Tabs } from '../components/Tabs'
 import { CoverageBadge } from '../components/CoverageBadge'
+import { useCurrency } from '../state/currency'
+
 
 type GroupBy = 'namespace' | 'controller' | 'node'
 
 export default function Allocations() {
   const { currentClusterId } = useCluster()
   const { period } = usePeriod()
+  const { currency } = useCurrency()
+
   const [groupBy, setGroupBy] = useState<GroupBy>('namespace')
 
   const allocPeriod = periodFromWindow(period)
@@ -54,7 +58,7 @@ export default function Allocations() {
           ]}
         />
         <div className="text-xs text-[var(--color-muted)]">
-          Всего по кластеру: <span className="tabular font-medium text-[var(--color-text)]">{fmtMoney(clusterTotal, 'RUB')}</span>
+          Всего по кластеру: <span className="tabular font-medium text-[var(--color-text)]">{fmtMoney(clusterTotal, currency)}</span>
         </div>
       </div>
 
@@ -90,14 +94,14 @@ export default function Allocations() {
                 {other && (
                   <tr className="border-t border-[var(--color-border)] bg-[var(--color-bg)]/40">
                     <td className="px-5 py-3 italic text-[var(--color-muted)]">Прочее</td>
-                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.cpu, 'RUB')}</td>
-                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.ram, 'RUB')}</td>
-                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.pv, 'RUB')}</td>
-                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.network, 'RUB')}</td>
+                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.cpu, currency)}</td>
+                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.ram, currency)}</td>
+                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.pv, currency)}</td>
+                    <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtMoney(other.breakdown.network, currency)}</td>
                     <td className="px-2 py-3 text-right">—</td>
                     <td className="px-2 py-3 text-right">—</td>
                     <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtPercent(other.share_of_total)}</td>
-                    <td className="px-5 py-3 text-right tabular font-medium">{fmtMoney(other.breakdown.total, 'RUB')}</td>
+                    <td className="px-5 py-3 text-right tabular font-medium">{fmtMoney(other.breakdown.total, currency)}</td>
                   </tr>
                 )}
               </tbody>
@@ -110,13 +114,14 @@ export default function Allocations() {
 }
 
 function Row({ item, clusterTotal: _clusterTotal }: { item: import('../api/client').AggregatedItem; clusterTotal: number }) {
+  const { currency } = useCurrency()
   return (
     <tr className="border-t border-[var(--color-border)] hover:bg-[var(--color-bg)]/60">
       <td className="px-5 py-3 font-medium">{item.key}</td>
-      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.cpu, 'RUB')}</td>
-      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.ram, 'RUB')}</td>
-      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.pv, 'RUB')}</td>
-      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.network, 'RUB')}</td>
+      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.cpu, currency)}</td>
+      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.ram, currency)}</td>
+      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.pv, currency)}</td>
+      <td className="px-2 py-3 text-right tabular">{fmtMoney(item.breakdown.network, currency)}</td>
       <td className="px-2 py-3 text-right tabular">
         {item.cpu_efficiency !== null ? (
           <span style={{ color: item.cpu_efficiency < 0.4 ? 'var(--color-accent-warning)' : 'inherit' }}>
@@ -132,7 +137,7 @@ function Row({ item, clusterTotal: _clusterTotal }: { item: import('../api/clien
         ) : '—'}
       </td>
       <td className="px-2 py-3 text-right tabular text-[var(--color-muted)]">{fmtPercent(item.share_of_total)}</td>
-      <td className="px-5 py-3 text-right tabular font-semibold">{fmtMoney(item.breakdown.total, 'RUB')}</td>
+      <td className="px-5 py-3 text-right tabular font-semibold">{fmtMoney(item.breakdown.total, currency)}</td>
     </tr>
   )
 }

@@ -6,6 +6,7 @@ import { periodFromWindow, periodFromWindowISO, fmtMoney, fmtPercent } from '../
 import { Card } from '../components/UI/Card'
 import { Skeleton } from '../components/UI/Skeleton'
 import { KpiCard } from '../components/KpiCard'
+import { useCurrency } from '../state/currency'
 import { CoverageBadge } from '../components/CoverageBadge'
 import { CostTrendChart } from '../components/Charts/CostTrendChart'
 import { CostBreakdownChart } from '../components/Charts/CostBreakdownChart'
@@ -15,6 +16,7 @@ import { Wallet, Cpu, MemoryStick, TrendingDown } from 'lucide-react'
 export default function Overview() {
   const { currentClusterId } = useCluster()
   const { period } = usePeriod()
+  const { currency } = useCurrency()
 
   const allocPeriod = periodFromWindow(period)
   const billingPeriod = periodFromWindowISO(period)
@@ -49,15 +51,14 @@ export default function Overview() {
   }
 
   const totalCost = billingSummary.data?.total_cost ?? totals.data?.breakdown.total ?? null
-  const currency = billingSummary.data?.currency ?? 'RUB'
   const cpuEff = totals.data?.cpu_efficiency ?? null
   const ramEff = totals.data?.ram_efficiency ?? null
   const preemptShare = billingSummary.data?.preemptible_share ?? null
 
   // Считаем потенциальные savings из открытых рекомендаций (только impact_kind === 'saving')
   const totalSavings = recs.data?.items
-    .filter(r => r.impact_kind === 'saving')
-    .reduce((sum, r) => sum + (parseFloat(r.monthly_impact) || 0), 0) ?? 0
+  .filter(r => r.impact_kind === 'saving' && r.status === 'open')
+  .reduce((sum, r) => sum + (parseFloat(r.monthly_impact_usd) || 0), 0) ?? 0
   const recsCount = recs.data?.items.length ?? 0
 
   return (

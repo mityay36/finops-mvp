@@ -92,10 +92,10 @@ export interface ClusterCreate {
 }
 
 export interface ClusterUpdate {
-  name?: string
-  opencost_url?: string
-  vm_url?: string
-  is_active?: boolean
+  name?: string | null
+  opencost_url?: string | null
+  vm_url?: string | null
+  is_active?: boolean | null
 }
 
 export interface CredentialMaskedRead {
@@ -120,7 +120,7 @@ export interface ProviderCredentialFieldRead {
 export interface ProviderRead {
   type: ProviderType
   name: string
-  description?: string | null
+  description: string
   credentials: ProviderCredentialFieldRead[]
 }
 
@@ -132,13 +132,20 @@ export interface Page<T> {
 }
 
 export interface CoverageInfo {
-  requested_from: string
+  requested_from: string  // YYYY-MM-DD
   requested_to: string
   days_requested: number
   days_with_data: number
   missing_days: string[]
   partial_days?: string[]
-  completeness_ratio: number
+  completeness_ratio: number  // 0..1
+}
+
+export interface PaginationMeta {
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
 }
 
 export interface CostBreakdown {
@@ -172,9 +179,9 @@ export interface BillingSummary {
 }
 
 export interface TimeseriesPoint {
-  date: string
-  total: string
-  by_service?: Record<string, string>
+  timestamp: string
+  cost: string
+  service_name?: string | null
 }
 
 export interface BillingTimeseries {
@@ -188,9 +195,10 @@ export interface BillingTimeseries {
 }
 
 export interface TopResource {
-  resource_name: string
-  resource_id: string
+  resource_id: string | null
+  resource_name: string | null
   service_name: string
+  sku_name: string
   cost: string
   is_preemptible: boolean
 }
@@ -213,6 +221,18 @@ export interface AllocationsTotalsResponse {
   generated_at: string
 }
 
+export interface CostBreakdown {
+  cpu: string
+  ram: string
+  gpu: string
+  pv: string
+  network: string
+  load_balancer: string
+  shared: string
+  external: string
+  total: string
+}
+
 export interface AggregatedItem {
   key: string
   breakdown: CostBreakdown
@@ -232,63 +252,78 @@ export interface AllocationsAggregatedResponse {
 }
 
 export interface TimeseriesPointDTO {
-  date: string
-  total?: string
-  by_key?: Record<string, string>
+  bucket_date: string
+  key?: string | null
+  breakdown: CostBreakdown
 }
 
 export interface AllocationsTimeseriesResponse {
   cluster_id: string
   period: CoverageInfo
-  group_by: 'namespace' | 'controller' | 'node' | null
+  group_by?: 'namespace' | 'controller' | 'node' | null
   series_keys?: string[]
   points: TimeseriesPointDTO[]
   generated_at: string
 }
 
 // ── Recommendations ───────────────────────────────────────────────────────
-export type RecSeverity = 'low' | 'medium' | 'high' | 'critical'
-export type RecStatus = 'open' | 'applied' | 'dismissed' | 'stale'
+export type RecSeverity = 'info' | 'warning' | 'critical'
+export type RecStatus = 'open' | 'applied' | 'dismissed' | 'closed_resolved'
 export type ImpactKind = 'saving' | 'cost_of_safety'
 
-export interface RecommendationListItem {
+export interface RecommendationItem {
   id: string
   cluster_id: string
   rule_id: string
-  severity: RecSeverity
-  status: RecStatus
-  title: string
   target_kind: string
-  target_namespace?: string | null
-  target_name?: string | null
-  monthly_impact: string
+  target_namespace: string
+  target_controller: string
+  status: RecStatus
+  severity: RecSeverity
+  monthly_impact_usd: string
   impact_kind: ImpactKind
-  currency: string
-  created_at: string
-  updated_at: string
-}
-
-export interface RecommendationListResponse {
-  items: RecommendationListItem[]
-  pagination: { total: number; limit: number; offset: number; has_more: boolean }
-}
-
-export interface RecommendationDetail extends RecommendationListItem {
-  description: string
-  evidence: Record<string, unknown>
-  remediation?: Record<string, unknown> | null
+  first_seen_at: string
+  last_seen_at: string
+  resolved_at?: string | null
   dismissed_reason?: string | null
 }
 
+export interface RecommendationListResponse {
+  items: RecommendationItem[]
+  pagination: PaginationMeta
+}
+
+export interface RecommendationRefreshResponse {
+  cluster_id: string
+  accepted: boolean
+  message: string
+}
+
+export interface RecommendationDetail extends RecommendationItem {
+  evidence: Record<string, unknown>
+}
+
 // ── Sync runs ─────────────────────────────────────────────────────────────
+export type SyncRunStatus = 'running' | 'success' | 'failed'
+
+// /sync/billing/runs/latest — урезанная схема (только успешные)
+export interface LatestBillingSyncRun {
+  id: string
+  cluster_id: string
+  finished_at: string
+  records_imported: number
+  window_start: string
+  window_end: string
+}
+
 export interface BillingSyncRunRead {
   id: string
   cluster_id: string
-  status: string
+  status: SyncRunStatus
   window_start: string
   window_end: string
   started_at: string
-  finished_at: string | null
+  finished_at?: string | null
   records_imported: number
   error_message?: string | null
 }
@@ -302,78 +337,95 @@ export interface AllocationsSnapshotRunRead {
   window_end: string
   days_processed: number
   rows_upserted: number
-  error: string | null
+  error?: string | null
   started_at: string
-  finished_at: string | null
+  finished_at?: string | null
 }
 
+// /sync/allocations/runs/latest — та же схема
+export type LatestAllocationsSnapshotRun = AllocationsSnapshotRunRead
+
 // ── Diagnostics ───────────────────────────────────────────────────────────
+export interface DiagnosticsEndpoint {
+  base_url: string
+  reachable: boolean
+}
+
 export interface DiagnosticsResponse {
-  [key: string]: unknown
+  cluster_id: string
+  cluster_name: string
+  opencost: DiagnosticsEndpoint
+  victoria_metrics: DiagnosticsEndpoint
 }
 
 // ── API surface ───────────────────────────────────────────────────────────
+function qs(params: Record<string, unknown>): string {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue
+    if (Array.isArray(v)) v.forEach(x => sp.append(k, String(x)))
+    else sp.append(k, String(v))
+  }
+  const s = sp.toString()
+  return s ? `?${s}` : ''
+}
+
 export const api = {
   // Providers
-  listProviders: () => request<ProviderRead[]>('GET', '/api/v1/providers'),
+  listProviders: () => request<ProviderRead[]>('GET', '/providers'),
 
   // Clusters
-  listClusters: (params?: { limit?: number; offset?: number }) =>
-    request<Page<ClusterRead>>('GET', '/api/v1/clusters', { params }),
-  getCluster: (id: string) =>
-    request<ClusterDetailedRead>('GET', `/api/v1/clusters/${id}`),
-  createCluster: (body: ClusterCreate) =>
-    request<ClusterRead>('POST', '/api/v1/clusters', { body }),
-  updateCluster: (id: string, body: ClusterUpdate) =>
-    request<ClusterRead>('PATCH', `/api/v1/clusters/${id}`, { body }),
-  deleteCluster: (id: string) =>
-    request<void>('DELETE', `/api/v1/clusters/${id}`),
+  listClusters: (limit = 100) =>
+    request<{ items: ClusterRead[]; total: number; limit: number; offset: number }>('GET', `/clusters?limit=${limit}`),
+  getCluster: (id: string) => request<ClusterDetailedRead>('GET', `/clusters/${id}`),
+  createCluster: (body: ClusterCreate) => request<ClusterRead>('POST', '/clusters', {body}),
+  updateCluster: (id: string, body: ClusterUpdate) => request<ClusterRead>('PATCH', `/clusters/${id}`, {body}),
+  deleteCluster: (id: string) => request<void>('DELETE', `/clusters/${id}`),
 
   // Credentials
-  listCredentials: (id: string) =>
-    request<CredentialMaskedRead[]>('GET', `/api/v1/clusters/${id}/credentials`),
+  listCredentials: (id: string) => request<CredentialMaskedRead[]>('GET', `/clusters/${id}/credentials`),
   upsertCredentials: (id: string, body: CredentialUpsert) =>
-    request<CredentialMaskedRead[]>('PUT', `/api/v1/clusters/${id}/credentials`, { body }),
+    request<CredentialMaskedRead[]>('PUT', `/clusters/${id}/credentials`, {body}),
 
   // Diagnostics
-  getDiagnostics: (id: string) =>
-    request<DiagnosticsResponse>('GET', `/api/v1/clusters/${id}/diagnostics`),
-
-  // Billing
-  getBillingSummary: (id: string, params?: { period_start?: string; period_end?: string }) =>
-    request<BillingSummary>('GET', `/api/v1/clusters/${id}/billing/summary`, { params }),
-  getBillingTimeseries: (id: string, params?: { period_start?: string; period_end?: string; granularity?: 'daily' | 'weekly'; group_by?: 'total' | 'service' }) =>
-    request<BillingTimeseries>('GET', `/api/v1/clusters/${id}/billing/timeseries`, { params }),
-  getBillingTopResources: (id: string, params?: { period_start?: string; period_end?: string; limit?: number }) =>
-    request<BillingTopResources>('GET', `/api/v1/clusters/${id}/billing/top-resources`, { params }),
-
-  // Allocations
-  getAllocationsTotals: (id: string, params?: { from?: string; to?: string }) =>
-    request<AllocationsTotalsResponse>('GET', `/api/v1/clusters/${id}/allocations/totals`, { params }),
-  getAllocationsAggregated: (id: string, params?: { from?: string; to?: string; group_by?: 'namespace' | 'controller' | 'node'; top?: number }) =>
-    request<AllocationsAggregatedResponse>('GET', `/api/v1/clusters/${id}/allocations`, { params }),
-  getAllocationsTimeseries: (id: string, params?: { from?: string; to?: string; group_by?: 'namespace' | 'controller' | 'node'; top?: number }) =>
-    request<AllocationsTimeseriesResponse>('GET', `/api/v1/clusters/${id}/allocations/timeseries`, { params }),
-
-  // Recommendations
-  listRecommendations: (id: string, params?: { limit?: number; offset?: number; status?: string[]; severity?: string[]; rule_id?: string[]; namespace?: string[]; min_saving_usd?: number }) =>
-    request<RecommendationListResponse>('GET', `/api/v1/clusters/${id}/recommendations`, { params }),
-  getRecommendation: (id: string, recId: string) =>
-    request<RecommendationDetail>('GET', `/api/v1/clusters/${id}/recommendations/${recId}`),
-  applyRecommendation: (id: string, recId: string) =>
-    request<RecommendationDetail>('POST', `/api/v1/clusters/${id}/recommendations/${recId}/apply`),
-  dismissRecommendation: (id: string, recId: string, reason: string) =>
-    request<RecommendationDetail>('POST', `/api/v1/clusters/${id}/recommendations/${recId}/dismiss`, { body: { reason } }),
-  refreshRecommendations: (id: string) =>
-    request<{ status: string }>('POST', `/api/v1/clusters/${id}/recommendations/refresh`),
+  getDiagnostics: (id: string) => request<DiagnosticsResponse>('GET', `/clusters/${id}/diagnostics`),
 
   // Sync
-  triggerBillingSync: (id: string, force_full = false) =>
-    request<BillingSyncRunRead>('POST', `/api/v1/clusters/${id}/sync/billing`, { params: { force_full } }),
+  triggerBillingSync: (id: string, forceFull = false) =>
+    request<BillingSyncRunRead>('POST', `/clusters/${id}/sync/billing${qs({ force_full: forceFull })}`),
   getLatestBillingSync: (id: string) =>
-    request<BillingSyncRunRead>('GET', `/api/v1/clusters/${id}/sync/billing/runs/latest`),
-  triggerAllocationsSync: (id: string, backfill_days?: number) =>
-    request<AllocationsSnapshotRunRead>('POST', `/api/v1/clusters/${id}/sync/allocations`, { params: { backfill_days } }),
+    request<LatestBillingSyncRun>('GET', `/clusters/${id}/sync/billing/runs/latest`),
+
+  triggerAllocationsSync: (id: string, backfillDays?: number) =>
+    request<AllocationsSnapshotRunRead>('POST', `/clusters/${id}/sync/allocations${qs({ backfill_days: backfillDays })}`),
   getLatestAllocationsSync: (id: string) =>
-    request<AllocationsSnapshotRunRead>('GET', `/api/v1/clusters/${id}/sync/allocations/runs/latest`),
+    request<LatestAllocationsSnapshotRun>('GET', `/clusters/${id}/sync/allocations/runs/latest`),
+
+  // Billing
+  getBillingSummary: (id: string, p: { period_start?: string; period_end?: string } = {}) =>
+    request<BillingSummary>('GET', `/clusters/${id}/billing/summary${qs(p)}`),
+  getBillingTimeseries: (id: string, p: { period_start?: string; period_end?: string; granularity?: 'daily' | 'weekly'; group_by?: 'total' | 'service' } = {}) =>
+    request<BillingTimeseries>('GET', `/clusters/${id}/billing/timeseries${qs(p)}`),
+  getBillingTopResources: (id: string, p: { period_start?: string; period_end?: string; limit?: number } = {}) =>
+    request<BillingTopResources>('GET', `/clusters/${id}/billing/top-resources${qs(p)}`),
+
+  // Allocations
+  getAllocationsTotals: (id: string, p: { from?: string; to?: string } = {}) =>
+    request<AllocationsTotalsResponse>('GET', `/clusters/${id}/allocations/totals${qs(p)}`),
+  getAllocationsAggregated: (id: string, p: { from?: string; to?: string; group_by?: 'namespace' | 'controller' | 'node'; top?: number }) =>
+    request<AllocationsAggregatedResponse>('GET', `/clusters/${id}/allocations${qs(p)}`),
+  getAllocationsTimeseries: (id: string, p: { from?: string; to?: string; group_by?: 'namespace' | 'controller' | 'node'; top?: number } = {}) =>
+    request<AllocationsTimeseriesResponse>('GET', `/clusters/${id}/allocations/timeseries${qs(p)}`),
+
+  // Recommendations
+  listRecommendations: (id: string, p: { limit?: number; offset?: number; status?: RecStatus[]; severity?: RecSeverity[]; rule_id?: string[]; namespace?: string[]; min_saving_usd?: number } = {}) =>
+    request<RecommendationListResponse>('GET', `/clusters/${id}/recommendations${qs(p)}`),
+  getRecommendation: (clusterId: string, recId: string) =>
+    request<RecommendationDetail>('GET', `/clusters/${clusterId}/recommendations/${recId}`),
+  applyRecommendation: (clusterId: string, recId: string) =>
+    request<RecommendationDetail>('POST', `/clusters/${clusterId}/recommendations/${recId}/apply`),
+  dismissRecommendation: (clusterId: string, recId: string, reason: string) =>
+    request<RecommendationDetail>('POST', `/clusters/${clusterId}/recommendations/${recId}/dismiss`, { body: { reason } },),
+  refreshRecommendations: (id: string) =>
+    request<RecommendationRefreshResponse>('POST', `/clusters/${id}/recommendations/refresh`),
 }
