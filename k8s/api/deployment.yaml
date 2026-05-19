@@ -45,6 +45,11 @@ spec:
                 name: finops-api-config
             - secretRef:
                 name: finops-api-secrets
+          env:
+            - name: FINOPS_RULE_WINDOW_DAYS
+              value: "3"
+            - name: FINOPS_RULE_MIN_VALID_DAYS
+              value: "2"
           resources:
             requests: { cpu: 100m, memory: 256Mi }
             limits: { cpu: 1000m, memory: 1Gi }

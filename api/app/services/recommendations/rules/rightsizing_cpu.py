@@ -30,13 +30,14 @@ from app.services.recommendations.types import (
     EvaluationContext,
     RuleFinding,
 )
+from app.services.recommendations.rules._thresholds import MIN_VALID_DAYS
 
 
 # Tunable thresholds — kept module-level constants for now; promote to
 # config if/when we expose per-cluster overrides.
 _SAFETY_MARGIN = Decimal("0.3")
 _MIN_MONTHLY_SAVING_USD = Decimal("5.00")
-_MIN_DAYS_WITH_REQUEST = 10
+_MIN_DAYS_WITH_REQUEST = MIN_VALID_DAYS
 _MONTHLY_HOURS = Decimal(720)  # 24 × 30
 _P95_INDEX_FRACTION = Decimal("0.95")
 

@@ -30,3 +30,6 @@ key.json
 .ruff_cache
 
 dist
+experiment_data
+collect_experiment_data.py
+experiment_workloads.yaml

@@ -30,12 +30,13 @@ from app.services.recommendations.types import (
     EvaluationContext,
     RuleFinding,
 )
+from app.services.recommendations.rules._thresholds import MIN_VALID_DAYS
 
 
 # Tunables — module-level constants for now.
 _EFFICIENCY_TRIGGER = Decimal("0.85")
 _SAFETY_MARGIN = Decimal("0.30")
-_MIN_DAYS_WITH_REQUEST = 10
+_MIN_DAYS_WITH_REQUEST = MIN_VALID_DAYS
 _MIN_REQUEST_BYTES = Decimal(64 * 1024 * 1024)  # 64 MiB
 _MONTHLY_HOURS = Decimal(720)
 _GIB = Decimal(1024 * 1024 * 1024)

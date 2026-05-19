@@ -30,12 +30,13 @@ from app.services.recommendations.types import (
     EvaluationContext,
     RuleFinding,
 )
+from app.services.recommendations.rules._thresholds import MIN_VALID_DAYS
 
 
 # Tunables.
 _CPU_IDLE_THRESHOLD_CORES = Decimal("0.005")  # 5 millicores
 _RAM_IDLE_THRESHOLD_BYTES = Decimal(64 * 1024 * 1024)  # 64 MiB
-_MIN_DAYS = 10
+_MIN_DAYS = MIN_VALID_DAYS
 _MIN_MONTHLY_SAVING_USD = Decimal("5.00")
 _DAYS_PER_MONTH = Decimal(30)
 _GIB = Decimal(1024 * 1024 * 1024)
