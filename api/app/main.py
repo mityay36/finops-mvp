@@ -11,12 +11,19 @@ from app.core.database import dispose_engine
 from app.core.scheduler import shutdown_scheduler, start_scheduler
 from app.routers import allocations, billing, clusters, providers, sync, recommendations
 from app.services.factory import service_factory
+from app.services.recommendations.rules._thresholds import WINDOW_DAYS, MIN_VALID_DAYS
+
 
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+logger.info(
+    "Engine initialized: window_days=%d min_valid_days=%d",
+    WINDOW_DAYS, MIN_VALID_DAYS,
+)
 
 
 @asynccontextmanager
