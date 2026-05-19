@@ -8,6 +8,9 @@ import { api, ApiError, type RecommendationDetail } from '../../api/client'
 import { useCurrency } from '../../state/currency'
 import { ruleLabel } from '../../lib/recommendations'
 import { fmtMoney, fmtRelative } from '../../lib/format'
+import { ActionPlan } from './ActionPlan'
+import { buildAction } from '../../lib/recommendations'
+
 
 interface Props {
   open: boolean
@@ -102,64 +105,74 @@ export function RecommendationDrawer({ open, clusterId, recId, onClose, onChange
       {loading && <div className="text-sm text-[var(--color-muted)]">Загрузка...</div>}
       {error && <div className="text-sm text-[var(--color-accent-critical)]">{error}</div>}
 
-      {detail && (
-        <div className="flex flex-col gap-5">
-          <Section label="Цель">
-            <div className="text-sm">
-              <span className="text-[var(--color-muted)]">{detail.target_kind}</span>
-              {detail.target_namespace && <> · ns: <span className="font-medium">{detail.target_namespace}</span></>}
-              {detail.target_controller && <> · <span className="font-medium">{detail.target_controller}</span></>}
-            </div>
-          </Section>
+      {detail && (() => {
+        const action = buildAction(detail)
+        return (
+          <div className="flex flex-col gap-5">
+            {/* Цель */}
+            <Section label="Цель">
+              <div className="text-sm">
+                <span className="text-[var(--color-muted)]">{detail.target_kind}</span>
+                {detail.target_namespace && <> · ns: <span className="font-medium">{detail.target_namespace}</span></>}
+                {detail.target_controller && <> · <span className="font-medium">{detail.target_controller}</span></>}
+              </div>
+            </Section>
 
-          <Section label={detail.impact_kind === 'saving' ? 'Потенциал экономии' : 'Стоимость безопасности'}>
-            <div
-              className="text-2xl font-semibold tabular"
-              style={{
-                color: detail.impact_kind === 'saving'
-                  ? 'var(--color-accent-savings)'
-                  : 'var(--color-accent-warning)',
-              }}
-            >
-              {fmtMoney(parseFloat(detail.monthly_impact_usd) || 0, currency)}
-              <span className="text-sm font-normal text-[var(--color-muted)]"> / мес</span>
-            </div>
-          </Section>
-
-          {detail.evidence && Object.keys(detail.evidence).length > 0 && (
-            <Section label="Доказательства">
-              <pre
-                className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-3 overflow-x-auto"
-                style={{ fontFamily: 'var(--font-mono)' }}
+            {/* Impact */}
+            <Section label={detail.impact_kind === 'saving' ? 'Потенциал экономии' : 'Стоимость безопасности'}>
+              <div
+                className="text-2xl font-semibold tabular"
+                style={{
+                  color: detail.impact_kind === 'saving'
+                    ? 'var(--color-accent-savings)'
+                    : 'var(--color-accent-warning)',
+                }}
               >
-                {JSON.stringify(detail.evidence, null, 2)}
-              </pre>
+                {fmtMoney(parseFloat(detail.monthly_impact_usd) || 0, currency)}
+                <span className="text-sm font-normal text-[var(--color-muted)]"> / мес</span>
+              </div>
             </Section>
-          )}
 
-          {detail.dismissed_reason && (
-            <Section label="Причина отклонения">
-              <p className="text-sm italic text-[var(--color-muted)]">{detail.dismissed_reason}</p>
-            </Section>
-          )}
+            {/* Action plan — главное */}
+            {action ? (
+              <ActionPlan action={action} />
+            ) : (
+              // Fallback: незнакомое правило — показываем raw evidence
+              detail.evidence && Object.keys(detail.evidence).length > 0 && (
+                <Section label="Доказательства">
+                  <pre className="text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-3 overflow-x-auto" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {JSON.stringify(detail.evidence, null, 2)}
+                  </pre>
+                </Section>
+              )
+            )}
 
-          <div className="text-xs text-[var(--color-muted)] pt-2 border-t border-[var(--color-border)]">
-            Впервые обнаружено {fmtRelative(detail.first_seen_at)} · последний раз {fmtRelative(detail.last_seen_at)}
-            {detail.resolved_at && <> · решено {fmtRelative(detail.resolved_at)}</>}
-          </div>
+            {/* Dismissed reason */}
+            {detail.dismissed_reason && (
+              <Section label="Причина отклонения">
+                <p className="text-sm italic text-[var(--color-muted)]">{detail.dismissed_reason}</p>
+              </Section>
+            )}
 
-          {showDismissForm && (
-            <div className="border-t border-[var(--color-border)] pt-4">
-              <Field
-                label="Причина отклонения (минимум 3 символа)"
-                placeholder="Например: ложное срабатывание, нагрузка ожидаемая"
-                value={dismissReason}
-                onChange={e => setDismissReason(e.target.value)}
-              />
+            {/* Footer dates */}
+            <div className="text-xs text-[var(--color-muted)] pt-2 border-t border-[var(--color-border)]">
+              Впервые обнаружено {fmtRelative(detail.first_seen_at)} · последний раз {fmtRelative(detail.last_seen_at)}
+              {detail.resolved_at && <> · решено {fmtRelative(detail.resolved_at)}</>}
             </div>
-          )}
-        </div>
-      )}
+
+            {showDismissForm && (
+              <div className="border-t border-[var(--color-border)] pt-4">
+                <Field
+                  label="Причина отклонения (минимум 3 символа)"
+                  placeholder="Например: ложное срабатывание, нагрузка ожидаемая"
+                  value={dismissReason}
+                  onChange={e => setDismissReason(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </Drawer>
   )
 }

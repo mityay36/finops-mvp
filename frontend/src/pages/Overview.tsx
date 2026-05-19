@@ -281,7 +281,9 @@ function ReconcileBar({
 function ReconcileItem({
   tone, icon, label, value, share, hint,
 }: { tone: 'allocated' | 'unallocated'; icon: React.ReactNode; label: string; value: string; share: number; hint: string }) {
-  const color = tone === 'allocated' ? 'var(--color-accent-primary)' : 'var(--color-muted)'
+  const color = tone === 'allocated'
+  ? 'var(--color-accent-primary)'
+  : 'var(--color-text)'
   return (
     <div className="border border-[var(--color-border)] rounded-md p-3.5 flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -291,7 +293,7 @@ function ReconcileItem({
         </div>
         <Badge tone="neutral">{fmtPercent(share)}</Badge>
       </div>
-      <div className="text-xl font-semibold tabular" style={{ color }}>{value}</div>
+      <div className="text-xl font-semibold tabular" style={{ color }}>{value}</div>c
       <p className="text-xs text-[var(--color-muted)] leading-relaxed">{hint}</p>
     </div>
   )
