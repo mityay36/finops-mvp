@@ -42,15 +42,22 @@ export function fmtRelative(iso: string | null | undefined): string {
   return fmtDate(iso)
 }
 
-export function periodFromWindow(window: '7d' | '30d' | '90d'): { from: string; to: string } {
-  const days = parseInt(window)
+export function periodFromWindow(p: { days: number }): { period_start: string; period_end: string } {
   const to = new Date()
   const from = new Date()
-  from.setDate(from.getDate() - days)
+  from.setDate(to.getDate() - p.days + 1)
   return {
-    from: from.toISOString().slice(0, 10),  // YYYY-MM-DD
-    to: to.toISOString().slice(0, 10),
+    period_start: from.toISOString(),
+    period_end: to.toISOString(),
   }
+}
+
+export function allocPeriodFromWindow(p: { days: number }): { from: string; to: string } {
+  const to = new Date()
+  const from = new Date()
+  from.setDate(to.getDate() - p.days + 1)
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  return { from: fmt(from), to: fmt(to) }
 }
 
 export function periodFromWindowISO(window: '7d' | '30d' | '90d'): { period_start: string; period_end: string } {

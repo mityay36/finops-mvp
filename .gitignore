@@ -28,3 +28,5 @@ key.json
 .mypy_cache
 .pytest_cache
 .ruff_cache
+
+dist

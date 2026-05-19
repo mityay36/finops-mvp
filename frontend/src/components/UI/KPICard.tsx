@@ -4,8 +4,9 @@ import { cn } from '../../lib/utils'
 
 interface KPICardProps {
   label: string
-  value: string | number
-  subtitle?: string
+  value: React.ReactNode
+  subtitle?: React.ReactNode
+  sublabel?: React.ReactNode
   icon: React.ReactNode
   iconBg?: string
   animateValue?: boolean
@@ -14,6 +15,7 @@ interface KPICardProps {
   suffix?: string
   trend?: { value: number; label: string }
   loading?: boolean
+  tone?: 'savings' | 'warning'
 }
 
 function AnimatedNumber({ value, prefix = '', suffix = '' }: {
@@ -39,6 +41,7 @@ export function KPICard({
   label,
   value,
   subtitle,
+  sublabel,
   icon,
   iconBg = 'var(--color-primary-subtle)',
   animateValue,
@@ -47,6 +50,7 @@ export function KPICard({
   suffix,
   trend,
   loading,
+  tone,
 }: KPICardProps) {
   if (loading) {
     return (
@@ -70,6 +74,10 @@ export function KPICard({
     )
   }
 
+  const valueColor =
+  tone === 'savings' ? 'var(--color-accent-savings)' :
+  tone === 'warning' ? 'var(--color-accent-warning)' :
+  'var(--color-text)'
   const isPositiveTrend = trend && trend.value > 0
 
   return (
@@ -103,7 +111,7 @@ export function KPICard({
       {/* Value — большой */}
       <p
         className="kpi-value tabular"
-        style={{ color: 'var(--color-text)' }}
+        style={{ color: valueColor }}
       >
         {animateValue && numericValue !== undefined ? (
           <AnimatedNumber value={numericValue} prefix={prefix} suffix={suffix} />
@@ -113,12 +121,12 @@ export function KPICard({
       </p>
 
       {/* Subtitle */}
-      {subtitle && (
+      {(subtitle ?? sublabel) && (
         <p
           className="mt-1.5 text-xs"
           style={{ color: 'var(--color-text-faint)' }}
         >
-          {subtitle}
+          {subtitle ?? sublabel}
         </p>
       )}
 

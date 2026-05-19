@@ -3,24 +3,25 @@ import { useApi } from '../hooks/useApi'
 import { api } from '../api/client'
 import { useCluster } from '../state/cluster'
 import { usePeriod } from '../state/period'
-import { periodFromWindow, fmtMoney, fmtPercent } from '../lib/format'
+import { allocPeriodFromWindow, fmtMoney, fmtPercent } from '../lib/format'
 import { Card } from '../components/UI/Card'
 import { Skeleton } from '../components/UI/Skeleton'
 import { Tabs } from '../components/Tabs'
 import { CoverageBadge } from '../components/CoverageBadge'
 import { useCurrency } from '../state/currency'
+import { useMemo } from 'react'
 
 
 type GroupBy = 'namespace' | 'controller' | 'node'
 
 export default function Allocations() {
   const { currentClusterId } = useCluster()
-  const { period } = usePeriod()
   const { currency } = useCurrency()
 
   const [groupBy, setGroupBy] = useState<GroupBy>('namespace')
-
-  const allocPeriod = periodFromWindow(period)
+  const { period } = usePeriod()
+  const days = period === '7d' ? 7 : period === '90d' ? 90 : 30
+  const allocPeriod = useMemo(() => allocPeriodFromWindow({ days }), [days])
 
   const result = useApi(
     () => api.getAllocationsAggregated(currentClusterId!, { ...allocPeriod, group_by: groupBy, top: 50 }),
