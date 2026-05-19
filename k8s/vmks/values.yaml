@@ -11,17 +11,22 @@ vmsingle:
     retentionPeriod: "90d"
     resources:
       requests:
-        memory: 256Mi
-        cpu: 100m
-      limits:
-        memory: 512Mi
+        memory: 1Gi
         cpu: 500m
+      limits:
+        memory: 2Gi
+        cpu: 2000m
     storage:
       accessModes:
         - ReadWriteOnce
       resources:
         requests:
           storage: 10Gi
+    extraArgs:
+      search.maxConcurrentRequests: "8"
+      search.maxQueryDuration: "60s"
+      search.maxQueueDuration: "30s"
+      memory.allowedPercent: "70"
 
 vmagent:
   enabled: true
