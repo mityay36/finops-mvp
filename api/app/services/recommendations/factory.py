@@ -11,6 +11,7 @@ from app.services.recommendations.engine import RecommendationEngineService
 from app.services.recommendations.types import RuleEvaluator
 from app.services.recommendations.rules.rightsizing_cpu import RightsizingCpuRule
 from app.services.recommendations.rules.oom_risk_ram import OomRiskRamRule
+from app.services.recommendations.rules.idle_workload import IdleWorkloadRule
 
 
 def build_engine(
