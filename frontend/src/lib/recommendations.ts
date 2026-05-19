@@ -60,14 +60,13 @@ const mPercent = (s: string | undefined, digits = 1): string => {
   return `${(n * 100).toFixed(digits)}%`
 }
 
-const mBytes = (s: string | undefined): string => {
+const mGib = (s: string | undefined): string => {
   if (!s) return '—'
   const n = parseFloat(s)
   if (isNaN(n)) return s
-  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} Gi`
-  if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(0)} Mi`
-  if (n >= 1024) return `${(n / 1024).toFixed(0)} Ki`
-  return `${n.toFixed(0)} B`
+  // n в гибибайтах
+  if (n >= 1) return `${n.toFixed(2)} Gi`
+  return `${Math.round(n * 1024)} Mi`
 }
 
 export function buildAction(rec: RecommendationDetail): RecommendedAction | null {
@@ -125,34 +124,45 @@ function buildRightsizingCpu(rec: RecommendationDetail, e: Record<string, unknow
 }
 
 function buildRightsizingRam(rec: RecommendationDetail, e: Record<string, unknown>): RecommendedAction {
-  const reqCurrent = ev(e, 'ram_requested_median')
-  const recRam     = ev(e, 'ram_recommended')
-  const usedP95    = ev(e, 'ram_used_p95')
+  const reqCurrent = ev(e, 'ram_requested_median_gib')
+  const recRam     = ev(e, 'ram_recommended_gib')
+  const usedP95    = ev(e, 'ram_used_p95_gib')
   const days       = ev(e, 'days_evaluated')
   const margin     = ev(e, 'safety_margin')
   const pods       = ev(e, 'pods_per_day_avg')
+  const delta      = ev(e, 'ram_delta_gib')
+  const hours      = ev(e, 'monthly_hours')
+  const rate       = ev(e, 'ram_unit_cost_per_gib_hour')
   const kind       = ev(e, 'controller_kind') ?? rec.target_kind
   const ns         = rec.target_namespace
   const ctl        = rec.target_controller
 
+  const usedRatio = reqCurrent && usedP95
+    ? String(parseFloat(usedP95) / parseFloat(reqCurrent))
+    : undefined
+
   return {
-    headline: `Уменьшить request RAM у ${kind}/${ctl} с ${mBytes(reqCurrent)} до ${mBytes(recRam)}`,
+    headline: `Уменьшить request RAM у ${kind}/${ctl} с ${mGib(reqCurrent)} до ${mGib(recRam)}`,
     changes: [
       {
         field: 'spec.template.spec.containers[*].resources.requests.memory',
-        from: mBytes(reqCurrent),
-        to: mBytes(recRam),
+        from: mGib(reqCurrent),
+        to: mGib(recRam),
         note: `safety margin ${mPercent(margin, 0)}`,
       },
     ],
     why: [
-      `За ${days ?? '—'} дней p95 потребления RAM: ${mBytes(usedP95)}`,
-      `Текущий request (медиана): ${mBytes(reqCurrent)}`,
-      `Безопасный request с margin ${mPercent(margin, 0)}: ${mBytes(recRam)}`,
+      `За ${days ?? '—'} дней p95 потребления RAM: ${mGib(usedP95)}`,
+      `Текущий request (медиана): ${mGib(reqCurrent)}`,
+      usedRatio ? `Используется ~${mPercent(usedRatio, 1)} от запрошенного` : '',
+      `Безопасный request с margin ${mPercent(margin, 0)}: ${mGib(recRam)}`,
       `Подов в среднем за день: ${pods ?? '—'}`,
     ].filter(Boolean) as string[],
+    formula: delta && pods && hours && rate
+      ? `${Math.abs(parseFloat(delta)).toFixed(4)} GiB × ${parseFloat(pods).toFixed(2)} pods × ${hours} ч/мес × ${parseFloat(rate).toFixed(4)} ₽/GiB·ч ≈ ${parseFloat(rec.monthly_impact_usd).toFixed(2)} ₽/мес`
+      : undefined,
     kubectl: ns && ctl
-      ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=memory=${mBytes(recRam)}`
+      ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=memory=${mGib(recRam)}`
       : undefined,
     tone: 'saving',
     rawEvidence: e,
@@ -160,34 +170,47 @@ function buildRightsizingRam(rec: RecommendationDetail, e: Record<string, unknow
 }
 
 function buildOomRiskRam(rec: RecommendationDetail, e: Record<string, unknown>): RecommendedAction {
-  const reqCurrent = ev(e, 'ram_requested_median')
-  const recRam     = ev(e, 'ram_recommended')
-  const usedP95    = ev(e, 'ram_used_p95')
-  const oomEvents  = ev(e, 'oom_events') ?? ev(e, 'oom_kills')
+  const reqCurrent = ev(e, 'ram_requested_median_gib')
+  const recRam     = ev(e, 'ram_recommended_gib')
+  const usedP95    = ev(e, 'ram_used_p95_gib')
+  const effP95     = ev(e, 'efficiency_p95')
+  const effTrig    = ev(e, 'efficiency_trigger')
   const days       = ev(e, 'days_evaluated')
+  const margin     = ev(e, 'safety_margin')
+  const pods       = ev(e, 'pods_per_day_avg')
+  const delta      = ev(e, 'ram_delta_gib')
+  const hours      = ev(e, 'monthly_hours')
+  const rate       = ev(e, 'ram_unit_cost_per_gib_hour')
   const kind       = ev(e, 'controller_kind') ?? rec.target_kind
   const ns         = rec.target_namespace
   const ctl        = rec.target_controller
 
   return {
-    headline: `Увеличить request RAM у ${kind}/${ctl} до ${mBytes(recRam)} для предотвращения OOMKill`,
+    headline: `Увеличить request RAM у ${kind}/${ctl} с ${mGib(reqCurrent)} до ${mGib(recRam)} — для предотвращения OOMKill`,
     changes: [
       {
         field: 'spec.template.spec.containers[*].resources.requests.memory',
-        from: mBytes(reqCurrent),
-        to: mBytes(recRam),
+        from: mGib(reqCurrent),
+        to: mGib(recRam),
         note: 'инвестиция в стабильность, не экономия',
       },
     ],
     why: [
-      oomEvents ? `Зафиксировано OOM-событий: ${oomEvents}` : `Риск OOMKill при текущем request`,
-      usedP95 && reqCurrent
-        ? `p95 потребления (${mBytes(usedP95)}) близок или превышает request (${mBytes(reqCurrent)})`
+      effP95 && effTrig
+        ? `p95 эффективности ${mPercent(effP95, 1)} — выше порога риска ${mPercent(effTrig, 0)}`
         : '',
+      reqCurrent && usedP95
+        ? `p95 потребления RAM (${mGib(usedP95)}) близок к текущему request (${mGib(reqCurrent)})`
+        : '',
+      `Безопасный request с margin ${mPercent(margin, 0)}: ${mGib(recRam)}`,
       `Период наблюдения: ${days ?? '—'} дней`,
+      `Подов в среднем за день: ${pods ?? '—'}`,
     ].filter(Boolean) as string[],
+    formula: delta && pods && hours && rate
+      ? `${parseFloat(delta).toFixed(4)} GiB × ${parseFloat(pods).toFixed(2)} pods × ${hours} ч/мес × ${parseFloat(rate).toFixed(4)} ₽/GiB·ч ≈ ${parseFloat(rec.monthly_impact_usd).toFixed(2)} ₽/мес`
+      : undefined,
     kubectl: ns && ctl
-      ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=memory=${mBytes(recRam)}`
+      ? `kubectl -n ${ns} set resources ${kind}/${ctl} --requests=memory=${mGib(recRam)}`
       : undefined,
     tone: 'cost_of_safety',
     rawEvidence: e,
