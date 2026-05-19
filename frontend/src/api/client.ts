@@ -24,7 +24,8 @@ async function request<T>(
   path: string,
   opts: { params?: QueryParams; body?: unknown } = {},
 ): Promise<T> {
-  const url = new URL(`${API_BASE}${path}`, window.location.origin)
+  const API_PREFIX = '/api/v1'
+  const url = new URL(`${API_BASE}${API_PREFIX}${path}`, window.location.origin)
   if (opts.params) {
     for (const [k, v] of Object.entries(opts.params)) {
       if (v === null || v === undefined || v === '') continue
